@@ -54,6 +54,9 @@ To provide a balanced view, incidents within **500 m** of high-traffic community
 
 While the primary analysis focuses on York Region, this repository also contains tools for retrieving open data from other municipalities:
 
+### York Region
+The `download_york_data.py` script connects to the York Regional Police ArcGIS Hub API to request the CSV export of their datasets. It downloads both the historical data (2021-2025) to `dataSetDownloads/York_Historical_2021_to_2025.csv` (skipping if it already exists) and the current data (2025-Present) to a date-suffixed filename (e.g., `York_2025_to_2026-03-25.csv`). It cleanly handles dynamic export wait states (`202 Accepted` or `Pending` status) by checking the status API before cleanly saving the final datasets.
+
 ### Peel Region
 The `download_peel_data.py` script automatically downloads all open incident records (Ecrimes) directly from the Peel Police ArcGIS REST API. Because the ArcGIS FeatureServer limits queries to a maximum number of records (e.g., 2,000), the script sequentially paginates through the data using `resultOffset` and `resultRecordCount` parameters until all records are retrieved, saving the full dataset to the `dataSetDownloads/` folder with a date-suffixed filename (e.g., `Peel_Police_Service_Incidents_2026-03-25.csv`).
 

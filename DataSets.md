@@ -15,10 +15,9 @@ Peel | All Open Incidents | https://open.peelregion.ca/datasets/peel-police-serv
 Halton | https://haltonpolice.ca/crime-statistics/crime-map/
 
 
-York | ALL | 2021-2025 |https://www.yrp.ca/en/crime-statistics/crime-map.aspx | https://insights-york.opendata.arcgis.com/datasets/6ba41e1f3bfb4cd9bd0d89843a7d80f5_0/explore?location=44.071343%2C-79.466260%2C10&showTable=true |
-https://hub.arcgis.com/api/download/v1/items/6ba41e1f3bfb4cd9bd0d89843a7d80f5/csv?redirect=false&layers=0 | 6ba41e1f3bfb4cd9bd0d89843a7d80f5
+York | ALL | 2021-2025 |https://www.yrp.ca/en/crime-statistics/crime-map.aspx | https://insights-york.opendata.arcgis.com/datasets/6ba41e1f3bfb4cd9bd0d89843a7d80f5_0/explore?location=44.071343%2C-79.466260%2C10&showTable=true | `python3 download_york_data.py` (Outputs to `dataSetDownloads/York_Historical_2021_to_2025.csv`) | 6ba41e1f3bfb4cd9bd0d89843a7d80f5
 
-York | ALL | 2025-* | https://insights-york.opendata.arcgis.com/datasets/d89408f3c044424d91ada07cee849d55_0/explore?location=44.071343%2C-79.466260%2C10&showTable=true | https://hub.arcgis.com/api/download/v1/items/d89408f3c044424d91ada07cee849d55/csv?redirect=false&layers=0 | d89408f3c044424d91ada07cee849d55
+York | ALL | 2025-* | https://insights-york.opendata.arcgis.com/datasets/d89408f3c044424d91ada07cee849d55_0/explore?location=44.071343%2C-79.466260%2C10&showTable=true | `python3 download_york_data.py` (Outputs to `dataSetDownloads/York_2025_to_YYYY-MM-DD.csv`) | d89408f3c044424d91ada07cee849d55
 
 
 Toronto | https://open.toronto.ca/dataset/toronto-police-service-major-crime-indicators/
