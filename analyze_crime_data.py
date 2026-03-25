@@ -1,18 +1,25 @@
 """
 YRP Crime Data Analysis
 =======================
-Reads Occurrence_2021-2025.csv and produces per-year insights:
+Reads a YRP occurrence CSV and produces per-year insights:
   1. Total incidents by municipality
   2. Total incidents by municipality × crime type
   3. All of the above with anomaly locations removed (500m radius)
   4. Per-capita rates, violent crime, clearance, and more
 
 Every analysis is output in both UNFILTERED and FILTERED versions.
-Results are saved to a results/ subfolder as CSVs.
+Results are saved to a results_<input-file-name>/ subfolder as CSVs.
+
+Usage:
+  python analyze_crime_data.py -i <csv_file>
+  python analyze_crime_data.py -i Occurrence_2021-2025.csv
+  python analyze_crime_data.py -i Occurrence_2021-2025.csv --encoding cp1252
 """
 
 import os
+import sys
 import math
+import argparse
 import pandas as pd
 import numpy as np
 
@@ -20,8 +27,8 @@ import numpy as np
 # CONFIG
 # ---------------------------------------------------------------------------
 
-CSV_PATH = os.path.join(os.path.dirname(__file__) or ".", "Occurrence_2021-2025.csv")
-RESULTS_DIR = os.path.join(os.path.dirname(__file__) or ".", "results")
+# RESULTS_DIR is set dynamically in main() based on the input filename
+RESULTS_DIR = None
 
 FILTER_RADIUS_M = 500  # metres
 
@@ -101,7 +108,7 @@ def per_1k(count, pop):
 
 
 def save(df, name):
-    path = os.path.join(RESULTS_DIR, f"{name}.csv")
+    path = os.path.join(RESULTS_DIR, f"{name}.csv")  # type: ignore[arg-type]
     df.to_csv(path)
     print(f"  → Saved {path}")
 
@@ -111,11 +118,32 @@ def save(df, name):
 # ---------------------------------------------------------------------------
 
 def main():
+    global RESULTS_DIR
+
+    parser = argparse.ArgumentParser(description="Analyze YRP crime occurrence data.")
+    parser.add_argument("-i", "--input", required=True, help="Path to the occurrence CSV file")
+    parser.add_argument("--encoding", default="utf-8",
+                        help="Console output encoding (default: utf-8)")
+    args = parser.parse_args()
+
+    # Reconfigure stdout/stderr to the requested encoding
+    sys.stdout.reconfigure(encoding=args.encoding)
+    sys.stderr.reconfigure(encoding=args.encoding)
+
+    csv_path = args.input
+    if not os.path.isfile(csv_path):
+        print(f"Error: file not found: {csv_path}", file=sys.stderr)
+        sys.exit(1)
+
+    # Derive output folder: results_<filename-without-extension>
+    stem = os.path.splitext(os.path.basename(csv_path))[0]
+    RESULTS_DIR = os.path.join(os.path.dirname(csv_path) or ".", f"results_{stem}")
     os.makedirs(RESULTS_DIR, exist_ok=True)
+    print(f"Output folder: {RESULTS_DIR}")
 
     # ── Load & prepare ─────────────────────────────────────────────────────
     print("Loading data …")
-    df = pd.read_csv(CSV_PATH)
+    df = pd.read_csv(csv_path)
     print(f"  Total rows: {len(df):,}")
 
     # Extract year from Occurrence Date

@@ -59,11 +59,17 @@ To provide a balanced view, incidents within **500 m** of high-traffic community
 
 ### Run
 
-```powershell
-$env:PYTHONIOENCODING='utf-8'; python analyze_crime_data.py
+```bash
+python analyze_crime_data.py -i <csv_file>
+
+# Example:
+python analyze_crime_data.py -i Occurrence_2021-2025.csv
+
+# Override console encoding if needed:
+python analyze_crime_data.py -i Occurrence_2021-2025.csv --encoding cp1252
 ```
 
-Results are saved as CSVs to the `results/` directory. Files prefixed with `all_` are unfiltered; `filtered_` have anomaly locations removed.
+Results are saved as CSVs to a `results_<input-filename>/` directory (e.g. `results_Occurrence_2021-2025/`). Files prefixed with `all_` are unfiltered; `filtered_` have anomaly locations removed.
 
 ## Output
 
