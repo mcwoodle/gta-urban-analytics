@@ -1,0 +1,21 @@
+# Data files
+*.csv
+*.geojson
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Build artifacts
+dist/
+*.egg-info
+src/*.egg-info
