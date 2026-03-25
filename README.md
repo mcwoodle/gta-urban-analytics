@@ -54,6 +54,9 @@ To provide a balanced view, incidents within **500 m** of high-traffic community
 
 While the primary analysis focuses on York Region, this repository also contains tools for retrieving open data from other municipalities:
 
+### Toronto Region
+The `download_toronto_data.sh` bash script uses `wget` to rapidly download the 150MB+ Major Crime Indicators endpoint directly into `dataSetDownloads/Toronto_Major_Crime_Indicators.csv`.
+
 ### Durham Region
 The `download_durham_data.sh` bash script uses `wget` to automatically download all seven distinct crime datasets (e.g. Drug Violations, Robbery, Break and Enter, Auto Theft, etc.) directly into the `dataSetDownloads/` directory using their static ArcGIS Hub API CSV download endpoints.
 

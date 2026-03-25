@@ -20,4 +20,4 @@ York | ALL | 2021-2025 |https://www.yrp.ca/en/crime-statistics/crime-map.aspx | 
 York | ALL | 2025-* | https://insights-york.opendata.arcgis.com/datasets/d89408f3c044424d91ada07cee849d55_0/explore?location=44.071343%2C-79.466260%2C10&showTable=true | `python3 download_york_data.py` (Outputs to `dataSetDownloads/York_2025_to_YYYY-MM-DD.csv`) | d89408f3c044424d91ada07cee849d55
 
 
-Toronto | https://open.toronto.ca/dataset/toronto-police-service-major-crime-indicators/
+Toronto | Major Crime Indicators | 2014-* | https://open.toronto.ca/dataset/toronto-police-service-major-crime-indicators/ | `bash download_toronto_data.sh` (https://hub.arcgis.com/api/download/v1/items/0a239a5563a344a3bbf8452504ed8d68/csv?layers=0) | 0a239a5563a344a3bbf8452504ed8d68
