@@ -1,0 +1,28 @@
+Municipality,Crime Category,2021,2022,2023,2024,2025,Total
+Aurora,Other,244,228,215,244,1,932
+Aurora,Person,412,514,602,562,7,2097
+Aurora,Property,940,1027,1313,1397,5,4682
+East Gwillimbury,Other,222,202,191,206,0,821
+East Gwillimbury,Person,269,310,405,465,1,1450
+East Gwillimbury,Property,626,594,881,870,3,2974
+Georgina,Other,423,406,429,321,2,1581
+Georgina,Person,694,817,1017,945,6,3479
+Georgina,Property,1079,918,1065,1147,4,4213
+King,Other,175,149,153,165,1,643
+King,Person,217,256,299,320,4,1096
+King,Property,575,609,651,666,3,2504
+Markham,Other,1158,1215,1109,1027,6,4515
+Markham,Person,1784,2182,2328,2152,28,8474
+Markham,Property,4469,5364,6552,5769,25,22179
+Newmarket,Other,472,437,489,448,2,1848
+Newmarket,Person,882,981,1297,1284,7,4451
+Newmarket,Property,1433,1739,2116,2233,3,7524
+Richmond Hill,Other,625,693,718,694,2,2732
+Richmond Hill,Person,1409,1755,1945,1919,15,7043
+Richmond Hill,Property,3326,3934,4921,4561,15,16757
+Vaughan,Other,1577,1663,1561,1420,7,6228
+Vaughan,Person,2477,2989,3571,3422,24,12483
+Vaughan,Property,6887,8503,9861,9219,42,34512
+Whitchurch-Stouffville,Other,162,159,157,171,1,650
+Whitchurch-Stouffville,Person,302,362,399,358,4,1425
+Whitchurch-Stouffville,Property,717,731,868,696,3,3015
