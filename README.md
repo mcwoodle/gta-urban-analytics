@@ -55,10 +55,10 @@ To provide a balanced view, incidents within **500 m** of high-traffic community
 While the primary analysis focuses on York Region, this repository also contains tools for retrieving open data from other municipalities:
 
 ### Toronto Region
-The `download_toronto_data.sh` bash script uses `wget` to rapidly download the 150MB+ Major Crime Indicators endpoint directly into `dataSetDownloads/Toronto_Major_Crime_Indicators.csv`.
+The `download_toronto_data.py` python script uses the robust centralized `download_arcgis_hub_data.py` helper to securely download the 150MB+ Major Crime Indicators endpoint directly into `dataSetDownloads/Toronto_Major_Crime_Indicators.csv`.
 
 ### Durham Region
-The `download_durham_data.sh` bash script uses `wget` to automatically download all seven distinct crime datasets (e.g. Drug Violations, Robbery, Break and Enter, Auto Theft, etc.) directly into the `dataSetDownloads/` directory using their static ArcGIS Hub API CSV download endpoints.
+The `download_durham_data.py` python script dynamically downloads all seven distinct crime datasets (e.g. Drug Violations, Robbery, Break and Enter, Auto Theft, etc.) directly into the `dataSetDownloads/` directory via the ArcGIS REST payload status checker logic in `download_arcgis_hub_data.py`.
 
 ### York Region
 The `download_york_data.py` script connects to the York Regional Police ArcGIS Hub API to request the CSV export of their datasets. It downloads both the historical data (2021-2025) to `dataSetDownloads/York_Historical_2021_to_2025.csv` (skipping if it already exists) and the current data (2025-Present) to a date-suffixed filename (e.g., `York_2025_to_2026-03-25.csv`). It cleanly handles dynamic export wait states (`202 Accepted` or `Pending` status) by checking the status API before cleanly saving the final datasets.
