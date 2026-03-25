@@ -9,7 +9,7 @@ Durham | Auto Theft | 2020-* | https://open-data-drps.hub.arcgis.com/datasets/b0
 Durham | Shootings and Firearm Discharge | 2020-* | https://open-data-drps.hub.arcgis.com/datasets/1f7e2a19732740f29e26dc7a7395080c_0/explore?location=44.122158%2C-78.845606%2C10&showTable=true | https://hub.arcgis.com/api/download/v1/items/1f7e2a19732740f29e26dc7a7395080c/csv?layers=0
 
 
-Peel | https://open.peelregion.ca/datasets/peel-police-service-incidents/explore?location=43.6532%2C-79.3832%2C10.25&showTable=true
+Peel | All Open Incidents | https://open.peelregion.ca/datasets/peel-police-service-incidents/explore?location=43.6532%2C-79.3832%2C10.25&showTable=true | `python3 download_peel_data.py` (Outputs to `dataSetDownloads/`)
 
 
 Halton | https://haltonpolice.ca/crime-statistics/crime-map/

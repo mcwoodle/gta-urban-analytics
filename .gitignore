@@ -1,0 +1,13 @@
+# Data files
+*.csv
+*.geojson
+dataSetDownloads/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.env

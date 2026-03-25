@@ -50,6 +50,13 @@ To provide a balanced view, incidents within **500 m** of high-traffic community
 | East Gwillimbury | 34,637 |
 | King | 27,333 |
 
+## Data Acquisition
+
+While the primary analysis focuses on York Region, this repository also contains tools for retrieving open data from other municipalities:
+
+### Peel Region
+The `download_peel_data.py` script automatically downloads all open incident records (Ecrimes) directly from the Peel Police ArcGIS REST API. Because the ArcGIS FeatureServer limits queries to a maximum number of records (e.g., 2,000), the script sequentially paginates through the data using `resultOffset` and `resultRecordCount` parameters until all records are retrieved, saving the full dataset to the `dataSetDownloads/` folder with a date-suffixed filename (e.g., `Peel_Police_Service_Incidents_2026-03-25.csv`).
+
 ## Usage
 
 ### Prerequisites
