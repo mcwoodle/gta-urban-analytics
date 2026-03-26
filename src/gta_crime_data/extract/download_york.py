@@ -1,9 +1,10 @@
 import os
 from datetime import date
-from lib.download_arcgis_hub_data import download_arcgis_hub_csv
+from gta_crime_data.extract.arcgis.hub import download_arcgis_hub_csv
 
 def download_york_data():
-    output_dir = "dataSetDownloads"
+    output_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', '01_raw')
+    output_dir = os.path.normpath(output_dir)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
         

@@ -1,6 +1,6 @@
 # GTA Crime Data Analysis
 
-A package to fetch and analyze open-source crime  data from police services across the Greater Toronto Area (GTA).
+A package to fetch and analyze open-source crime data from police services across the Greater Toronto Area (GTA).
 
 ## 1. Setup
 
@@ -13,30 +13,48 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-## 2. Data Retrieval
-
-Download the latest data locally.
-
+**Install dependencies:**
 ```bash
-uv run download_toronto_data.py
-uv run download_york_data.py
-uv run download_peel_data.py
-uv run download_halton_data.py
-uv run download_durham_data.py
+uv sync
 ```
 
-## 3. Analysis
+## 2. Data Retrieval
+
+Download the latest data locally into `data/01_raw/`.
 
 ```bash
-uv run analyze_crime_data.py -i dataSetDownloads/<your_downloaded_file>.csv
+uv run -m gta_crime_data.extract.download_toronto
+uv run -m gta_crime_data.extract.download_york
+uv run -m gta_crime_data.extract.download_peel
+uv run -m gta_crime_data.extract.download_halton
+uv run -m gta_crime_data.extract.download_durham
+```
+
+Or download all at once:
+```bash
+uv run -m gta_crime_data.main download
+```
+
+## 3. Data Unification
+
+Unify all downloaded CSVs into a single `data/02_transformed/unified_crime_data.csv`:
+
+```bash
+uv run -m gta_crime_data.transform.unify_datasets
+```
+
+## 4. Analysis
+
+```bash
+uv run -m gta_crime_data.analyze.analyze -i data/01_raw/<your_downloaded_file>.csv
 
 # Example (York Region)
-uv run analyze_crime_data.py -i dataSetDownloads/York_2025_to_YYYY-MM-DD.csv
+uv run -m gta_crime_data.analyze.analyze -i data/01_raw/York_2025_to_YYYY-MM-DD.csv
 ```
 *(Note: If you encounter Windows file encoding errors, append `--encoding cp1252` to the command.)*
 
 ### Generated Results
-The script will output 10+ analytical reports directly into a `dataSetDownloads/results_<filename>/` directory, including:
+Results are saved to `data/03_analysis/results_<filename>/`, including:
 * **Crime Rates**: Incidents per 1,000 residents and Violent Crime Rates
 * **Breakdowns**: Property vs. Person Crime and clear location distributions (Business vs Outdoor vs Residence)
 * **Demographics**: Shootings, Firearm Discharges, and Hate Crime tracking
@@ -44,7 +62,7 @@ The script will output 10+ analytical reports directly into a `dataSetDownloads/
 
 ---
 
-## 4. Methodology: Anomaly Filtering
+## 5. Methodology: Anomaly Filtering
 To provide balanced perspectives in the generated reports, you will notice both **`all_`** (unfiltered) and **`filtered_`** CSVs output during the analysis.
 
 The **filtered** datasets automatically identify and remove incidents occurring within 500 meters of massive regional anomalies that skew per-capita data, such as:

@@ -1,19 +1,19 @@
 """
-YRP Crime Data Analysis
+GTA Crime Data Analysis
 =======================
-Reads a YRP occurrence CSV and produces per-year insights:
+Reads a crime occurrence CSV and produces per-year insights:
   1. Total incidents by municipality
   2. Total incidents by municipality × crime type
   3. All of the above with anomaly locations removed (500m radius)
   4. Per-capita rates, violent crime, clearance, and more
 
 Every analysis is output in both UNFILTERED and FILTERED versions.
-Results are saved to a results_<input-file-name>/ subfolder as CSVs.
+Results are saved to data/03_analysis/ as CSVs.
 
 Usage:
-  python analyze_crime_data.py -i <csv_file>
-  python analyze_crime_data.py -i Occurrence_2021-2025.csv
-  python analyze_crime_data.py -i Occurrence_2021-2025.csv --encoding cp1252
+  uv run -m gta_crime_data.analyze.analyze -i <csv_file>
+  uv run -m gta_crime_data.analyze.analyze -i data/01_raw/York_2025_to_YYYY-MM-DD.csv
+  uv run -m gta_crime_data.analyze.analyze -i data/01_raw/York_2025_to_YYYY-MM-DD.csv --encoding cp1252
 """
 
 import os
@@ -26,6 +26,8 @@ import numpy as np
 # ---------------------------------------------------------------------------
 # CONFIG
 # ---------------------------------------------------------------------------
+
+_project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 # RESULTS_DIR is set dynamically in main() based on the input filename
 RESULTS_DIR = None
@@ -120,7 +122,7 @@ def save(df, name):
 def main():
     global RESULTS_DIR
 
-    parser = argparse.ArgumentParser(description="Analyze YRP crime occurrence data.")
+    parser = argparse.ArgumentParser(description="Analyze GTA crime occurrence data.")
     parser.add_argument("-i", "--input", required=True, help="Path to the occurrence CSV file")
     parser.add_argument("--encoding", default="utf-8",
                         help="Console output encoding (default: utf-8)")
@@ -135,9 +137,9 @@ def main():
         print(f"Error: file not found: {csv_path}", file=sys.stderr)
         sys.exit(1)
 
-    # Derive output folder: results_<filename-without-extension>
+    # Output to data/03_analysis/results_<filename>
     stem = os.path.splitext(os.path.basename(csv_path))[0]
-    RESULTS_DIR = os.path.join(os.path.dirname(csv_path) or ".", f"results_{stem}")
+    RESULTS_DIR = os.path.join(_project_root, 'data', '03_analysis', f"results_{stem}")
     os.makedirs(RESULTS_DIR, exist_ok=True)
     print(f"Output folder: {RESULTS_DIR}")
 

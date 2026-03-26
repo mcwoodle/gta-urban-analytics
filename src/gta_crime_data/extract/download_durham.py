@@ -1,8 +1,9 @@
 import os
-from lib.download_arcgis_hub_data import download_arcgis_hub_csv
+from gta_crime_data.extract.arcgis.hub import download_arcgis_hub_csv
 
 def download_durham_data():
-    output_dir = "dataSetDownloads"
+    output_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', '01_raw')
+    output_dir = os.path.normpath(output_dir)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -21,7 +22,7 @@ def download_durham_data():
         output_path = os.path.join(output_dir, filename)
         api_url = f"https://hub.arcgis.com/api/download/v1/items/{item_id}/csv?redirect=false&layers=0"
         download_arcgis_hub_csv(api_url, output_path, filename.replace(".csv", "").replace("_", " "))
-    print("All Durham data successfully downloaded into dataSetDownloads/!")
+    print("All Durham data successfully downloaded into data/01_raw/!")
 
 if __name__ == "__main__":
     download_durham_data()
