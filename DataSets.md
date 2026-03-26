@@ -9,10 +9,10 @@ Durham | Auto Theft | 2020-* | https://open-data-drps.hub.arcgis.com/datasets/b0
 Durham | Shootings and Firearm Discharge | 2020-* | https://open-data-drps.hub.arcgis.com/datasets/1f7e2a19732740f29e26dc7a7395080c_0/explore?location=44.122158%2C-78.845606%2C10&showTable=true | `python3 download_durham_data.py` (https://hub.arcgis.com/api/download/v1/items/1f7e2a19732740f29e26dc7a7395080c/csv?layers=0) | 1f7e2a19732740f29e26dc7a7395080c
 
 
-Peel | All Open Incidents | https://open.peelregion.ca/datasets/peel-police-service-incidents/explore?location=43.6532%2C-79.3832%2C10.25&showTable=true | `python3 download_peel_data.py` (Outputs to `dataSetDownloads/`)
+Peel | All Open Incidents | https://open.peelregion.ca/datasets/peel-police-service-incidents/explore?location=43.6532%2C-79.3832%2C10.25&showTable=true | `python3 download_peel_data.py` (Outputs to `dataSetDownloads/Peel_Crime_Map_Data.csv`) | 
 
 
-Halton | https://haltonpolice.ca/crime-statistics/crime-map/
+Halton | Crime Map Data | 2025-* | https://haltonpolice.ca/crime-statistics/crime-map/ | `python3 download_halton_data.py` (Outputs to `dataSetDownloads/Halton_Crime_Map_Data.csv`) | 2868b55253904626897f4bab56c490c8
 
 
 York | ALL | 2021-2025 |https://www.yrp.ca/en/crime-statistics/crime-map.aspx | https://insights-york.opendata.arcgis.com/datasets/6ba41e1f3bfb4cd9bd0d89843a7d80f5_0/explore?location=44.071343%2C-79.466260%2C10&showTable=true | `python3 download_york_data.py` (Outputs to `dataSetDownloads/York_Historical_2021_to_2025.csv`) | 6ba41e1f3bfb4cd9bd0d89843a7d80f5
