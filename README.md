@@ -20,36 +20,25 @@ uv sync
 
 ## 2. Data Retrieval
 
-Download the latest data locally into `data/01_raw/`.
-
+Download all regional crime datasets into `data/01_raw/`:
 ```bash
-uv run -m gta_crime_data.extract.download_toronto
-uv run -m gta_crime_data.extract.download_york
-uv run -m gta_crime_data.extract.download_peel
-uv run -m gta_crime_data.extract.download_halton
-uv run -m gta_crime_data.extract.download_durham
-```
-
-Or download all at once:
-```bash
-uv run -m gta_crime_data.main download
+uv run download
 ```
 
 ## 3. Data Unification
 
 Unify all downloaded CSVs into a single `data/02_transformed/unified_crime_data.csv`:
-
 ```bash
-uv run -m gta_crime_data.transform.unify_datasets
+uv run unify
 ```
 
 ## 4. Analysis
 
 ```bash
-uv run -m gta_crime_data.analyze.analyze -i data/01_raw/<your_downloaded_file>.csv
+uv run analyze -i data/01_raw/<your_downloaded_file>.csv
 
 # Example (York Region)
-uv run -m gta_crime_data.analyze.analyze -i data/01_raw/York_2025_to_YYYY-MM-DD.csv
+uv run analyze -i data/01_raw/York_2025_to_YYYY-MM-DD.csv
 ```
 *(Note: If you encounter Windows file encoding errors, append `--encoding cp1252` to the command.)*
 

@@ -12,7 +12,26 @@ Usage:
 import sys
 
 
+def download():
+    """Download all regional crime datasets into data/01_raw/."""
+    from gta_crime_data.extract.all import download
+    download()
+
+
+def unify():
+    """Unify all downloaded regional CSVs into a single master CSV."""
+    from gta_crime_data.transform.unify_datasets import run
+    run()
+
+
+def analyze():
+    """Run per-region statistical analysis on a CSV file."""
+    from gta_crime_data.analyze.analyze import main as analyze_main
+    analyze_main()
+
+
 def main():
+    """Main CLI dispatcher."""
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(0)
@@ -22,26 +41,11 @@ def main():
     sys.argv = [sys.argv[0]] + sys.argv[2:]
 
     if command == "download":
-        from gta_crime_data.extract.download_durham import download_durham_data
-        from gta_crime_data.extract.download_halton import download_halton_crime_data
-        from gta_crime_data.extract.download_peel import download_peel_crime_data
-        from gta_crime_data.extract.download_toronto import download_toronto_data
-        from gta_crime_data.extract.download_york import download_york_data
-
-        download_toronto_data()
-        download_york_data()
-        download_peel_crime_data()
-        download_halton_crime_data()
-        download_durham_data()
-
+        download()
     elif command == "unify":
-        from gta_crime_data.transform.unify_datasets import run
-        run()
-
+        unify()
     elif command == "analyze":
-        from gta_crime_data.analyze.analyze import main as analyze_main
-        analyze_main()
-
+        analyze()
     else:
         print(f"Unknown command: {command}")
         print(__doc__)

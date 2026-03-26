@@ -12,6 +12,11 @@ dependencies = [
     "pyproj>=3.7.1",
 ]
 
+[project.scripts]
+download = "gta_crime_data.extract.all:download"
+unify = "gta_crime_data.main:unify"
+analyze = "gta_crime_data.main:analyze"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
