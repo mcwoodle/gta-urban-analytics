@@ -39,6 +39,7 @@ def run():
     # Durham
     for f in glob.glob(os.path.join(data_dir, 'Durham_*.csv')):
         logging.info(f"Processing Durham: {f}")
+        raw_file = os.path.splitext(os.path.basename(f))[0]
         df = pd.read_csv(f, low_memory=False)
         
         if 'occurrence_year' in df.columns:
@@ -52,7 +53,8 @@ def run():
             dates = pd.NaT
 
         out = pd.DataFrame({
-            'uid': 'Durham_' + df.get('event_unique_id', df.index.to_series().astype(str)),
+            'source_file_name': raw_file,
+            'source_identifier': df.get('event_unique_id', df.index.to_series().astype(str)),
             'region': 'Durham',
             'original_crime_type': df.get('offence'),
             'mapped_crime_category': df.get('offence', pd.Series(dtype=str)).apply(_map),
@@ -70,8 +72,10 @@ def run():
         df = pd.read_csv(halton, low_memory=False)
         dates = pd.to_datetime(df['DATE'], unit='ms', errors='coerce').dt.strftime('%Y-%m-%d')
         
+        raw_file = os.path.splitext(os.path.basename(halton))[0]
         out = pd.DataFrame({
-            'uid': 'Halton_' + df.get('OBJECTID', df.index.to_series()).astype(str),
+            'source_file_name': raw_file,
+            'source_identifier': df.get('OBJECTID', df.index.to_series()).astype(str),
             'region': 'Halton',
             'original_crime_type': df.get('DESCRIPTION'),
             'mapped_crime_category': df.get('DESCRIPTION', pd.Series(dtype=str)).apply(_map),
@@ -95,8 +99,10 @@ def run():
         else:
             dates = pd.NaT
 
+        raw_file = os.path.splitext(os.path.basename(peel))[0]
         out = pd.DataFrame({
-            'uid': 'Peel_' + df.get('OBJECTID', df.index.to_series()).astype(str),
+            'source_file_name': raw_file,
+            'source_identifier': df.get('OBJECTID', df.index.to_series()).astype(str),
             'region': 'Peel',
             'original_crime_type': df.get('Description'),
             'mapped_crime_category': df.get('Description', pd.Series(dtype=str)).apply(_map),
@@ -115,8 +121,10 @@ def run():
         
         dates = pd.to_datetime(df['OCC_DATE'], errors='coerce').dt.strftime('%Y-%m-%d')
         
+        raw_file = os.path.splitext(os.path.basename(toronto))[0]
         out = pd.DataFrame({
-            'uid': 'Toronto_' + df.get('EVENT_UNIQUE_ID', df.index.to_series().astype(str)),
+            'source_file_name': raw_file,
+            'source_identifier': df.get('EVENT_UNIQUE_ID', df.index.to_series().astype(str)),
             'region': 'Toronto',
             'original_crime_type': df.get('OFFENCE'),
             'mapped_crime_category': df.get('OFFENCE', pd.Series(dtype=str)).apply(_map),
@@ -130,6 +138,7 @@ def run():
     # York
     for f in glob.glob(os.path.join(data_dir, 'York_*.csv')):
         logging.info(f"Processing York: {f}")
+        raw_file = os.path.splitext(os.path.basename(f))[0]
         df = pd.read_csv(f, low_memory=False)
         
         dates = pd.to_datetime(df.get('Occurrence Date', pd.NaT), errors='coerce').dt.strftime('%Y-%m-%d')
@@ -153,7 +162,8 @@ def run():
         uid_col = df.get('UniqueIdentifier', df.get('OBJECTID', df.index.to_series())).astype(str)
             
         out = pd.DataFrame({
-            'uid': 'York_' + uid_col,
+            'source_file_name': raw_file,
+            'source_identifier': uid_col,
             'region': 'York',
             'original_crime_type': crime_type,
             'mapped_crime_category': crime_type.apply(_map),

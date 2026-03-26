@@ -12,6 +12,9 @@ venv/
 env/
 .env
 
+# Jupyter
+.ipynb_checkpoints/
+
 # Build artifacts
 dist/
 *.egg-info
