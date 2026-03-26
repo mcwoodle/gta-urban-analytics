@@ -9,7 +9,9 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 data_dir = os.path.join(os.path.dirname(__file__), 'dataSetDownloads')
 mapping_file = os.path.join(os.path.dirname(__file__), 'crime_mapping.json')
-output_file = os.path.join(os.path.dirname(__file__), 'dataSetDownloads', 'unified_crime_data.csv')
+output_dir = os.path.join(os.path.dirname(__file__), 'processedDataSet')
+output_file = os.path.join(output_dir, 'unified_crime_data.csv')
+os.makedirs(output_dir, exist_ok=True)
 
 def load_mapping():
     if not os.path.exists(mapping_file):

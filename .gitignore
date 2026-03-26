@@ -2,6 +2,7 @@
 *.csv
 *.geojson
 dataSetDownloads/
+processedDataSet/
 
 # Python
 __pycache__/
