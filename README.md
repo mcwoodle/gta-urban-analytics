@@ -55,26 +55,31 @@ To provide a balanced view, incidents within **500 m** of high-traffic community
 While the primary analysis focuses on York Region, this repository also contains tools for retrieving open data from other municipalities:
 
 ### Toronto Region
-The `download_toronto_data.py` python script uses the robust centralized `download_arcgis_hub_data.py` helper to securely download the 150MB+ Major Crime Indicators endpoint directly into `dataSetDownloads/Toronto_Major_Crime_Indicators.csv`.
+The `download_toronto_data.py` python script uses the robust centralized `lib/download_arcgis_hub_data.py` helper to securely download the 150MB+ Major Crime Indicators endpoint directly into `dataSetDownloads/Toronto_Major_Crime_Indicators.csv`.
 
 ### Halton Region
-The `download_halton_data.py` script bypasses local export restrictions on the Halton Crime Map by connecting directly to the region's ArcGIS FeatureServer API. It uses the `download_arcgis_paginated_experience_data.py` paginator helper to fetch and chunk the GeoJSON data directly into `dataSetDownloads/Halton_Crime_Map_Data.csv`.
+The `download_halton_data.py` script bypasses local export restrictions on the Halton Crime Map by connecting directly to the region's ArcGIS FeatureServer API. It uses the `lib/download_arcgis_paginated_experience_data.py` paginator helper to fetch and chunk the GeoJSON data directly into `dataSetDownloads/Halton_Crime_Map_Data.csv`.
 
 ### Durham Region
-The `download_durham_data.py` python script dynamically downloads all seven distinct crime datasets (e.g. Drug Violations, Robbery, Break and Enter, Auto Theft, etc.) directly into the `dataSetDownloads/` directory via the ArcGIS REST payload status checker logic in `download_arcgis_hub_data.py`.
+The `download_durham_data.py` python script dynamically downloads all seven distinct crime datasets (e.g. Drug Violations, Robbery, Break and Enter, Auto Theft, etc.) directly into the `dataSetDownloads/` directory via the ArcGIS REST payload status checker logic in `lib/download_arcgis_hub_data.py`.
 
 ### York Region
 The `download_york_data.py` script connects to the York Regional Police ArcGIS Hub API to request the CSV export of their datasets. It downloads both the historical data (2021-2025) to `dataSetDownloads/York_Historical_2021_to_2025.csv` (skipping if it already exists) and the current data (2025-Present) to a date-suffixed filename (e.g., `York_2025_to_2026-03-25.csv`). It cleanly handles dynamic export wait states (`202 Accepted` or `Pending` status) by checking the status API before cleanly saving the final datasets.
 
 ### Peel Region
-The `download_peel_data.py` script automatically downloads all open incident records (Ecrimes) directly from the Peel Police ArcGIS REST API. Because the ArcGIS FeatureServer limits queries to a maximum number of records (e.g., 2,000), the script sequentially paginates through the data using `resultOffset` and `resultRecordCount` parameters via the centralized `download_arcgis_paginated_experience_data.py` helper, saving the full dataset to the `dataSetDownloads/` folder as `Peel_Crime_Map_Data.csv`.
+The `download_peel_data.py` script automatically downloads all open incident records (Ecrimes) directly from the Peel Police ArcGIS REST API. Because the ArcGIS FeatureServer limits queries to a maximum number of records (e.g., 2,000), the script sequentially paginates through the data using `resultOffset` and `resultRecordCount` parameters via the centralized `lib/download_arcgis_paginated_experience_data.py` helper, saving the full dataset to the `dataSetDownloads/` folder as `Peel_Crime_Map_Data.csv`.
 
 ## Usage
 
 ### Prerequisites
 
 - Python 3.10+
-- pandas (`pip install pandas`)
+- Install dependencies locally via a virtual environment:
+  ```bash
+  python3 -m venv venv
+  source venv/bin/activate
+  pip install -e .
+  ```
 
 ### Run
 

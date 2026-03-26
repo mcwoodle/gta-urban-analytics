@@ -1,0 +1,12 @@
+[project]
+name = "gta-crime-data-anaylsis"
+version = "0.1.0"
+description = "Data acquisition and analysis pipeline for Greater Toronto Area (GTA) crime data."
+authors = [
+    { name = "Matt Woodley" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0.0"
+]

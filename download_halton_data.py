@@ -1,5 +1,5 @@
 import os
-from download_arcgis_paginated_experience_data import download_paginated_geojson
+from lib.download_arcgis_paginated_experience_data import download_paginated_geojson
 
 def download_halton_crime_data():
     output_dir = "dataSetDownloads"

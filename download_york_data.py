@@ -1,6 +1,6 @@
 import os
 from datetime import date
-from download_arcgis_hub_data import download_arcgis_hub_csv
+from lib.download_arcgis_hub_data import download_arcgis_hub_csv
 
 def download_york_data():
     output_dir = "dataSetDownloads"
