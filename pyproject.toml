@@ -8,5 +8,6 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "pandas>=2.0.0"
+    "pandas>=2.0.0",
+    "pyproj>=3.7.1",
 ]
