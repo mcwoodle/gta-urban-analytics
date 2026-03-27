@@ -13,12 +13,15 @@ dependencies = [
     "jupyter>=1.0.0",
     "ipykernel>=6.0.0",
     "pandera>=0.30.1",
+    "keplergl>=0.3.0",
+    "setuptools<71",
 ]
 
 [project.scripts]
 download = "gta_crime_data.extract.all:download"
 unify = "gta_crime_data.main:unify"
 analyze = "gta_crime_data.main:analyze"
+kepler = "gta_crime_data.visualize.kepler_map:main"
 
 [build-system]
 requires = ["hatchling"]
