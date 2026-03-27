@@ -5,8 +5,11 @@ import json
 import logging
 from importlib import resources
 from pyproj import Transformer
-import pandera.pandas as pa
-from pandera.pandas import Column, DataFrameSchema
+from gta_crime_data.schemas import (
+    durham_schema, halton_schema, peel_schema, 
+    toronto_schema, york_schema, unified_schema
+)
+from gta_crime_data.extract.durham import DURHAM_DATASETS
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
@@ -15,60 +18,6 @@ _project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '
 data_dir = os.path.join(_project_root, 'data', '01_raw')
 output_dir = os.path.join(_project_root, 'data', '02_transformed')
 output_file = os.path.join(output_dir, 'unified_crime_data.csv')
-
-# --- Pandera Schemas ---
-# Validating the expected loose structure of the raw datasets. 
-# We use coerce=True to handle slight type variations where possible, and required=False 
-# for columns that are conditionally extracted via df.get() in the logic.
-
-durham_schema = DataFrameSchema({
-    "offence": Column(pa.String, nullable=True, required=False, coerce=True),
-    "occurrence_year": Column(nullable=True, required=False),
-    "occurrence_month": Column(nullable=True, required=False),
-    "occurrence_day": Column(nullable=True, required=False),
-    "lat": Column(pa.Float, nullable=True, required=False, coerce=True),
-    "lon": Column(pa.Float, nullable=True, required=False, coerce=True),
-    "municipality": Column(pa.String, nullable=True, required=False, coerce=True),
-    "event_unique_id": Column(nullable=True, required=False),
-}, coerce=True)
-
-halton_schema = DataFrameSchema({
-    "DATE": Column(nullable=True, required=False),
-    "OBJECTID": Column(nullable=True, required=False),
-    "DESCRIPTION": Column(pa.String, nullable=True, required=False, coerce=True),
-    "Latitude": Column(pa.Float, nullable=True, required=False, coerce=True),
-    "Longitude": Column(pa.Float, nullable=True, required=False, coerce=True),
-    "CITY": Column(pa.String, nullable=True, required=False, coerce=True),
-}, coerce=True)
-
-peel_schema = DataFrameSchema({
-    "OccDate": Column(nullable=True, required=False),
-    "OccurrenceDate": Column(nullable=True, required=False),
-    "OBJECTID": Column(nullable=True, required=False),
-    "Description": Column(pa.String, nullable=True, required=False, coerce=True),
-    "lat": Column(pa.Float, nullable=True, required=False, coerce=True),
-    "lon": Column(pa.Float, nullable=True, required=False, coerce=True),
-    "Municipality": Column(pa.String, nullable=True, required=False, coerce=True),
-}, coerce=True)
-
-toronto_schema = DataFrameSchema({
-    "OCC_DATE": Column(nullable=True, required=False),
-    "EVENT_UNIQUE_ID": Column(nullable=True, required=False),
-    "OFFENCE": Column(pa.String, nullable=True, required=False, coerce=True),
-    "LAT_WGS84": Column(pa.Float, nullable=True, required=False, coerce=True),
-    "LONG_WGS84": Column(pa.Float, nullable=True, required=False, coerce=True),
-}, coerce=True)
-
-york_schema = DataFrameSchema({
-    "Occurrence Date": Column(nullable=True, required=False),
-    "Occurrence Type": Column(nullable=True, required=False),
-    "Occurrence Detail": Column(nullable=True, required=False),
-    "x": Column(pa.Float, nullable=True, required=False, coerce=True),
-    "y": Column(pa.Float, nullable=True, required=False, coerce=True),
-    "UniqueIdentifier": Column(nullable=True, required=False),
-    "OBJECTID": Column(nullable=True, required=False),
-    "Municipality": Column(nullable=True, required=False),
-}, coerce=True)
 
 def _load_mapping():
     mapping_ref = resources.files('gta_crime_data.transform').joinpath('crime_category_mappings.json')
@@ -92,11 +41,21 @@ def run():
 
     all_dfs = []
 
+    # Map Durham filenames to categories
+    durham_category_map = {
+        os.path.splitext(d['raw_csv_file'])[0]: d['category'] 
+        for d in DURHAM_DATASETS
+    }
+
     # Durham
     for f in glob.glob(os.path.join(data_dir, 'Durham_*.csv')):
         logging.info(f"Processing Durham: {f}")
         raw_file = os.path.splitext(os.path.basename(f))[0]
-        df = pd.read_csv(f, low_memory=False)
+        
+        # Look up the top-level crime category from the registry
+        file_category = durham_category_map.get(raw_file, "Other")
+        
+        df = pd.read_csv(f, low_memory=False, encoding='utf-8-sig')
         durham_schema.validate(df)
         
         if 'occurrence_year' in df.columns:
@@ -113,8 +72,9 @@ def run():
             'source_file_name': raw_file,
             'source_identifier': df.get('event_unique_id', df.index.to_series().astype(str)),
             'region': 'Durham',
-            'original_crime_type': df.get('offence'),
-            'mapped_crime_category': df.get('offence', pd.Series(dtype=str)).apply(_map),
+            # Use 'offence' column if available, fall back to the filename-derived category
+            'original_crime_type': df.get('offence', pd.Series([file_category]*len(df))).fillna(file_category),
+            'mapped_crime_category': file_category,
             'occurrence_date': dates,
             'lat': df.get('lat'),
             'lon': df.get('lon'),

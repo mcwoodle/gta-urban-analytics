@@ -3,6 +3,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
 def deduplicate_incidents(df: pd.DataFrame, verbose: bool = True) -> pd.DataFrame:
     """
     De-duplicates crime records by source_identifier.
@@ -52,3 +54,26 @@ def deduplicate_incidents(df: pd.DataFrame, verbose: bool = True) -> pd.DataFram
         logger.info(f"  Multi-offence incidents identified: {multi_count:,}")
 
     return df_deduped
+
+
+def transform_unified_csv():
+    _project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+    input_file = os.path.join(_project_root, 'data', '02_transformed', 'unified_crime_data.csv')
+    output_file = os.path.join(_project_root, 'data', '02_transformed', 'deduplicated_crime_data.csv')
+
+    if not os.path.exists(input_file):
+        logging.error(f"Input file not found: {input_file}")
+        return
+
+    logging.info(f"Loading data from {input_file}...")
+    df = pd.read_csv(input_file, low_memory=False)
+
+    logging.info("Deduplicating incidents...")
+    df_deduped = deduplicate_incidents(df, verbose=True)
+
+    logging.info(f"Saving deduplicated data to {output_file}...")
+    df_deduped.to_csv(output_file, index=False)
+    logging.info("Done.")
+
+if __name__ == "__main__":
+    transform_unified_csv()

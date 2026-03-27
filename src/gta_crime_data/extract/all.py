@@ -1,8 +1,8 @@
-from gta_crime_data.extract.download_durham import download_durham_data
-from gta_crime_data.extract.download_halton import download_halton_crime_data
-from gta_crime_data.extract.download_peel import download_peel_crime_data
-from gta_crime_data.extract.download_toronto import download_toronto_data
-from gta_crime_data.extract.download_york import download_york_data
+from gta_crime_data.extract.durham import download_durham_data
+from gta_crime_data.extract.halton import download_halton_crime_data
+from gta_crime_data.extract.peel import download_peel_crime_data
+from gta_crime_data.extract.toronto import download_toronto_data
+from gta_crime_data.extract.york import download_york_data
 
 
 def download():
@@ -18,4 +18,3 @@ def download():
 
 if __name__ == "__main__":
     download()
-
