@@ -1,6 +1,8 @@
 import os
 from gta_crime_data.extract.arcgis.paginated import download_paginated_geojson
 
+CENSUS_DIVISION_ID = 3524
+
 def download_halton_crime_data():
     output_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', '01_raw')
     output_dir = os.path.normpath(output_dir)

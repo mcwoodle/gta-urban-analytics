@@ -1,6 +1,8 @@
 import os
 from gta_crime_data.extract.arcgis.hub import download_arcgis_hub_csv
 
+CENSUS_DIVISION_ID = 3518
+
 DURHAM_DATASETS = [
     {"category": "Drug Violations",                "raw_csv_file": "Durham_Drug_Violations.csv",                "arcgis_id": "e0f56f8938c04215895b4c99d86e335f"},
     {"category": "Robbery",                        "raw_csv_file": "Durham_Robbery.csv",                        "arcgis_id": "b33ed02277c24547888da0499870642a"},

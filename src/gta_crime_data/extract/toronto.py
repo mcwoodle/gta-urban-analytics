@@ -1,6 +1,8 @@
 import os
 from gta_crime_data.extract.arcgis.hub import download_arcgis_hub_csv
 
+CENSUS_DIVISION_ID = 3520
+
 def download_toronto_data():
     output_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', '01_raw')
     output_dir = os.path.normpath(output_dir)

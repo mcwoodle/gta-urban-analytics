@@ -1,6 +1,8 @@
 import os
 from gta_crime_data.extract.arcgis.paginated import download_paginated_geojson
 
+CENSUS_DIVISION_ID = 3521
+
 def download_peel_crime_data():
     output_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', '01_raw')
     output_dir = os.path.normpath(output_dir)

@@ -2,6 +2,8 @@ import os
 from datetime import date
 from gta_crime_data.extract.arcgis.hub import download_arcgis_hub_csv
 
+CENSUS_DIVISION_ID = 3519
+
 def download_york_data():
     output_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', '01_raw')
     output_dir = os.path.normpath(output_dir)
