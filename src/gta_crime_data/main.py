@@ -21,7 +21,7 @@ def download():
 
 def unify():
     """Unify all downloaded regional CSVs in memory (does not save to CSV)."""
-    from gta_crime_data.transform.unify_datasets import unify_datasets
+    from gta_crime_data.transform.crime.unify_datasets import unify_datasets
     unify_datasets()
 
 

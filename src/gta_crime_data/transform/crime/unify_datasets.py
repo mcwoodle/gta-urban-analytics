@@ -13,12 +13,12 @@ from gta_crime_data.extract.durham import DURHAM_DATASETS
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
-# Resolve paths relative to the project root (3 levels up from this file)
-_project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+# Resolve paths relative to the project root (4 levels up from this file)
+_project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 data_dir = os.path.join(_project_root, 'data', '01_raw')
 
 def _load_mapping():
-    mapping_ref = resources.files('gta_crime_data.transform').joinpath('crime_category_mappings.json')
+    mapping_ref = resources.files('gta_crime_data.transform.crime').joinpath('crime_category_mappings.json')
     with resources.as_file(mapping_ref) as mapping_path:
         with open(mapping_path, 'r') as f:
             return json.load(f)

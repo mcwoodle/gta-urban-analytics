@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
-# Resolve paths relative to the project root (3 levels up from this file)
-_project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+# Resolve paths relative to the project root (4 levels up from this file)
+_project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
 
 def filter_invalid_incidents(df: pd.DataFrame, verbose: bool = True) -> pd.DataFrame:
