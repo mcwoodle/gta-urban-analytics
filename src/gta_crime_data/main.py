@@ -4,8 +4,9 @@ GTA Crime Data Pipeline
 Entry point for the GTA crime data acquisition, transformation, and analysis pipeline.
 
 Usage:
-  uv run -m gta_crime_data.main download   # Download all regional datasets
-  uv run -m gta_crime_data.main unify      # Unify downloaded data into a single CSV
+  uv run -m gta_crime_data.main download    # Download all regional datasets
+  uv run -m gta_crime_data.main unify       # Unify downloaded data into a single CSV
+  uv run -m gta_crime_data.main transform   # Run full transform pipeline (unify → filter → deduplicate)
   uv run -m gta_crime_data.main analyze -i <csv_file>  # Run analysis on a dataset
 """
 
@@ -21,6 +22,12 @@ def download():
 def unify():
     """Unify all downloaded regional CSVs into a single master CSV."""
     from gta_crime_data.transform.unify_datasets import run
+    run()
+
+
+def transform():
+    """Run the full transform pipeline: unify → filter invalid → deduplicate."""
+    from gta_crime_data.transform.pipeline import run
     run()
 
 
@@ -44,6 +51,8 @@ def main():
         download()
     elif command == "unify":
         unify()
+    elif command == "transform":
+        transform()
     elif command == "analyze":
         analyze()
     else:

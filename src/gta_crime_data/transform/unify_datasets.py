@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 _project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 data_dir = os.path.join(_project_root, 'data', '01_raw')
 output_dir = os.path.join(_project_root, 'data', '02_transformed')
-output_file = os.path.join(output_dir, 'unified_crime_data.csv')
+output_file = os.path.join(output_dir, '01_unified.csv')
 
 def _load_mapping():
     mapping_ref = resources.files('gta_crime_data.transform').joinpath('crime_category_mappings.json')

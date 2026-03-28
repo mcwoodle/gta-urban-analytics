@@ -57,10 +57,10 @@ def deduplicate_incidents(df: pd.DataFrame, verbose: bool = True) -> pd.DataFram
     return df_deduped
 
 
-def transform_unified_csv():
+def run():
     _project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    input_file = os.path.join(_project_root, 'data', '02_transformed', 'unified_crime_data.csv')
-    output_file = os.path.join(_project_root, 'data', '02_transformed', 'deduplicated_crime_data.csv')
+    input_file = os.path.join(_project_root, 'data', '02_transformed', '02_unified_valid.csv')
+    output_file = os.path.join(_project_root, 'data', '02_transformed', '03_unified_valid_deduplicated.csv')
 
     if not os.path.exists(input_file):
         logging.error(f"Input file not found: {input_file}")
@@ -77,4 +77,4 @@ def transform_unified_csv():
     logging.info("Done.")
 
 if __name__ == "__main__":
-    transform_unified_csv()
+    run()
