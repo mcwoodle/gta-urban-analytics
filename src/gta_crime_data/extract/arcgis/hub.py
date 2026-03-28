@@ -18,8 +18,10 @@ def download_arcgis_hub_csv(api_url, output_path, data_label):
                 if status == "Completed":
                     result_url = data.get("resultUrl")
                     print(f"Download is ready for {data_label}!")
-                elif status in ["Pending", "Processing", "Generating"]:
-                    print(f"Status is {status}, waiting 5 seconds...")
+                elif status in ["Pending", "Processing", "Generating", "ExportingData"]:
+                    progress = data.get("progressInPercent")
+                    progress_msg = f" ({progress}%)" if progress is not None else ""
+                    print(f"Status is {status}{progress_msg}, waiting 5 seconds...")
                     time.sleep(5)
                 else:
                     print(f"Unexpected status: {status}")

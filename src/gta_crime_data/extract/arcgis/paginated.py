@@ -12,7 +12,8 @@ def download_paginated_geojson(base_url, output_path, data_label):
     all_features = []
     
     while True:
-        print(f"Fetching records {offset} to {offset + record_count - 1}...")
+        # Use end='\r' to keep output on the same line
+        print(f"Fetching {record_count} records of {len(all_features)}", end="\r", flush=True)
         
         params = {
             "where": "1=1",
@@ -30,12 +31,12 @@ def download_paginated_geojson(base_url, output_path, data_label):
             
             features = data.get("features", [])
             all_features.extend(features)
-            print(f"Retrieved {len(features)} records. Total: {len(all_features)}")
             
             # Check if there's more data to fetch
             if data.get("properties", {}).get("exceededTransferLimit") is True:
                 offset += record_count
             else:
+                print(f"\nFinal count: {len(all_features)} records retrieved.")
                 break
 
     # Build the CSV
