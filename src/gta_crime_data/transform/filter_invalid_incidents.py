@@ -38,38 +38,16 @@ def filter_invalid_incidents(df: pd.DataFrame, verbose: bool = True) -> pd.DataF
         valid_df = df.drop(index=invalid_indices)
         
         # Save invalid rows for inspection
-        invalid_path = os.path.join(_project_root, 'data', '02_transformed', '02_invalid.csv')
+        invalid_path = os.path.join(_project_root, 'data', '02_transformed', 'invalid_data.csv')
+        os.makedirs(os.path.dirname(invalid_path), exist_ok=True)
         invalid_df.to_csv(invalid_path, index=False)
         
         if verbose:
             logger.info(f"Found {len(err.failure_cases)} validation errors affecting {len(invalid_indices):,} rows.")
             logger.info(f"  Valid rows:   {len(valid_df):,}")
             logger.info(f"  Invalid rows: {len(invalid_df):,} (saved to {invalid_path})")
-            logger.info("\nReasons breakdown:")
-            logger.info("\n" + cases['reason'].value_counts().to_string())
+            logger.info("   Reasons breakdown:")
+            for reason, count in cases['reason'].value_counts().items():
+                logger.info(f"    - {reason}: {count}")
         
         return valid_df
-
-
-def run():
-    """Run filtering as a standalone step: reads 01_unified.csv, writes 02_unified_valid.csv."""
-    input_file = os.path.join(_project_root, 'data', '02_transformed', '01_unified.csv')
-    output_file = os.path.join(_project_root, 'data', '02_transformed', '02_unified_valid.csv')
-
-    if not os.path.exists(input_file):
-        logger.error(f"Input file not found: {input_file}")
-        return
-
-    logger.info(f"Loading data from {input_file}...")
-    df = pd.read_csv(input_file, low_memory=False)
-
-    logger.info("Filtering invalid incidents...")
-    valid_df = filter_invalid_incidents(df, verbose=True)
-
-    logger.info(f"Saving valid data to {output_file}...")
-    valid_df.to_csv(output_file, index=False)
-    logger.info("Done.")
-
-
-if __name__ == "__main__":
-    run()

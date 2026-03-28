@@ -16,8 +16,6 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 # Resolve paths relative to the project root (3 levels up from this file)
 _project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 data_dir = os.path.join(_project_root, 'data', '01_raw')
-output_dir = os.path.join(_project_root, 'data', '02_transformed')
-output_file = os.path.join(output_dir, '01_unified.csv')
 
 def _load_mapping():
     mapping_ref = resources.files('gta_crime_data.transform').joinpath('crime_category_mappings.json')
@@ -34,8 +32,12 @@ def map_crime(crime_type, mapping):
 # Setup pyproj transformer for York (EPSG:26917 to EPSG:4326)
 transformer = Transformer.from_crs("EPSG:26917", "EPSG:4326", always_xy=True)
 
-def run():
-    os.makedirs(output_dir, exist_ok=True)
+def unify_datasets() -> pd.DataFrame:
+    """Load and unify all regional raw CSVs into a single DataFrame.
+    
+    Returns:
+        pd.DataFrame: The unified dataset with standardised columns.
+    """
     mapping = _load_mapping()
     _map = lambda ct: map_crime(ct, mapping)
 
@@ -198,10 +200,8 @@ def run():
     logging.info("Concatenating all regions...")
     if all_dfs:
         unified_df = pd.concat(all_dfs, ignore_index=True)
-        unified_df.to_csv(output_file, index=False)
-        logging.info(f"Finished writing {len(unified_df)} rows and {len(unified_df.columns)} columns to {output_file}")
+        logging.info(f"Unified {len(unified_df):,} rows × {len(unified_df.columns)} columns")
+        return unified_df
     else:
         logging.info("No data frames to concatenate.")
-
-if __name__ == "__main__":
-    run()
+        return pd.DataFrame()

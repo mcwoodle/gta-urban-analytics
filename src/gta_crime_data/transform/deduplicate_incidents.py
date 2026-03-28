@@ -1,6 +1,5 @@
 import pandas as pd
 import logging
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -55,26 +54,3 @@ def deduplicate_incidents(df: pd.DataFrame, verbose: bool = True) -> pd.DataFram
         logger.info(f"  Multi-offence incidents identified: {multi_count:,}")
 
     return df_deduped
-
-
-def run():
-    _project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    input_file = os.path.join(_project_root, 'data', '02_transformed', '02_unified_valid.csv')
-    output_file = os.path.join(_project_root, 'data', '02_transformed', '03_unified_valid_deduplicated.csv')
-
-    if not os.path.exists(input_file):
-        logging.error(f"Input file not found: {input_file}")
-        return
-
-    logging.info(f"Loading data from {input_file}...")
-    df = pd.read_csv(input_file, low_memory=False)
-
-    logging.info("Deduplicating incidents...")
-    df_deduped = deduplicate_incidents(df, verbose=True)
-
-    logging.info(f"Saving deduplicated data to {output_file}...")
-    df_deduped.to_csv(output_file, index=False)
-    logging.info("Done.")
-
-if __name__ == "__main__":
-    run()
