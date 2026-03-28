@@ -1,8 +1,8 @@
 import requests
 import zipfile
 import io
-import os
 from pathlib import Path
+from tqdm.auto import tqdm
 
 def download_statcan_census_data():
     # URL for the 2021 Census Profile at the DA level from https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21
@@ -12,26 +12,46 @@ def download_statcan_census_data():
     # Walk up from src/gta_crime_data/extract/statcan/ to the project root
     project_root = Path(__file__).resolve().parents[4]
     raw_data_path = project_root / "data" / "01_raw" / "statcan_census"
-    raw_data_path.mkdir(parents=True, exist_ok=True)
     
+    # Check if the primary shapefile already exists to skip download
+    expected_shp = raw_data_path / "lda_000b21a_e.shp"
+    if expected_shp.exists():
+        print(f"Census shapefiles already exist at {expected_shp}. Skipping download.")
+        return
+        
+    raw_data_path.mkdir(parents=True, exist_ok=True)
     _download_statcan_bulk_census(da_census_url, raw_data_path)
 
 def _download_statcan_bulk_census(census_url: str, output_dir: Path):
     """
-    Downloads a massive StatCan bulk ZIP file into memory and 
-    extracts the CSVs directly into your raw data folder.
+    Streams a massive StatCan bulk ZIP file into memory, displays a 
+    dynamic progress bar, and extracts the CSVs directly to the raw data folder.
     """
-    print(f"Downloading from Statistics Canada: {census_url}")
+    print("Connecting to Statistics Canada...")
     
-    # Send the GET request to the static ZIP URL
-    response = requests.get(census_url)
-    response.raise_for_status()  # Stop the pipeline if the download fails
+    # stream=True forces requests to leave the connection open and download in pieces
+    response = requests.get(census_url, stream=True)
+    response.raise_for_status()
     
-    print("Download complete. Extracting CSV files from ZIP...")
+    # Ask the server exactly how large the file is (in bytes)
+    total_size = int(response.headers.get('content-length', 0))
     
-    # Read the downloaded bytes in memory (so we don't save a useless .zip file)
-    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-        # Extract all files within the zip directly to your data folder
+    buffer = io.BytesIO()
+    
+    # Setup the progress bar
+    # unit='iB' and unit_scale=True automatically formats bytes into KB/MB/GB
+    with tqdm(total=total_size, unit='iB', unit_scale=True, desc="Downloading Census") as progress_bar:
+        # Download the file in 1 Megabyte chunks
+        for chunk in response.iter_content(chunk_size=1024 * 1024):
+            if chunk:  # Filter out keep-alive new chunks
+                buffer.write(chunk)
+                progress_bar.update(len(chunk))
+                
+    print("\nDownload complete. Extracting CSV files from ZIP...")
+    
+    # Extract all files within the zip directly to your data folder
+    buffer.seek(0)
+    with zipfile.ZipFile(buffer) as z:
         z.extractall(output_dir)
         
     print(f"Extraction complete! Census CSVs are ready in {output_dir}")
