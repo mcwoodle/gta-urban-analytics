@@ -12,6 +12,10 @@ Usage:
 
 import sys
 
+def full_pipeline():
+    download()
+    transform()
+    # analyze()
 
 def download():
     """Download all regional crime datasets into data/01_raw/."""

@@ -24,6 +24,7 @@ download = "gta_crime_data.extract.all:download"
 unify = "gta_crime_data.main:unify"
 transform = "gta_crime_data.main:transform"
 analyze = "gta_crime_data.main:analyze"
+full-pipeline = "gta_crime_data.main:full_pipeline"
 kepler = "gta_crime_data.visualize.kepler_map:main"
 
 [build-system]
