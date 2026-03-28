@@ -176,6 +176,19 @@ def generate_map(year: int) -> str:
         'PROVIDE_MAPBOX_TOKEN',
         MAPBOX_TOKEN,
     )
+
+    # Inject a window resize event to make the map fill the browser window
+    # Only replace the last occurrence of </body> to avoid issues with potential nested content
+    parts = html.rsplit('</body>', 1)
+    if len(parts) == 2:
+        html = parts[0] + """
+    <script>
+      window.addEventListener('load', () => {
+        window.dispatchEvent(new Event('resize'));
+      });
+    </script>
+</body>""" + parts[1]
+
     with open(output_path, 'w') as f:
         f.write(html)
 
