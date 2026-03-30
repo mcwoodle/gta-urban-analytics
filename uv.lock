@@ -609,7 +609,7 @@ wheels = [
 ]
 
 [[package]]
-name = "gta-crime-data-analysis"
+name = "gta-urban-analytics"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
