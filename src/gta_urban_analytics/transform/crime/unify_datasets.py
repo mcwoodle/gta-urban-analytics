@@ -5,11 +5,11 @@ import json
 import logging
 from importlib import resources
 from pyproj import Transformer
-from gta_crime_data.schemas import (
+from gta_urban_analytics.schemas import (
     durham_schema, halton_schema, peel_schema, 
     toronto_schema, york_schema, unified_schema
 )
-from gta_crime_data.extract.durham import DURHAM_DATASETS
+from gta_urban_analytics.extract.durham import DURHAM_DATASETS
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
@@ -18,7 +18,7 @@ _project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '
 data_dir = os.path.join(_project_root, 'data', '01_raw')
 
 def _load_mapping():
-    mapping_ref = resources.files('gta_crime_data.transform.crime').joinpath('crime_category_mappings.json')
+    mapping_ref = resources.files('gta_urban_analytics.transform.crime').joinpath('crime_category_mappings.json')
     with resources.as_file(mapping_ref) as mapping_path:
         with open(mapping_path, 'r') as f:
             return json.load(f)

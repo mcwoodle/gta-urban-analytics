@@ -1,5 +1,5 @@
 import os
-from gta_crime_data.extract.arcgis.paginated import download_paginated_geojson
+from gta_urban_analytics.extract.arcgis.paginated import download_paginated_geojson
 
 CENSUS_DIVISION_ID = 3524
 

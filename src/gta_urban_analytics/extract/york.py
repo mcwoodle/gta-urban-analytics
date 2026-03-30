@@ -1,6 +1,6 @@
 import os
 from datetime import date
-from gta_crime_data.extract.arcgis.hub import download_arcgis_hub_csv
+from gta_urban_analytics.extract.arcgis.hub import download_arcgis_hub_csv
 
 CENSUS_DIVISION_ID = 3519
 

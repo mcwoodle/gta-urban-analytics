@@ -2,7 +2,7 @@ import pandas as pd
 import logging
 import os
 import pandera.errors as pa_errors
-from gta_crime_data.schemas import unified_schema
+from gta_urban_analytics.schemas import unified_schema
 
 logger = logging.getLogger(__name__)
 

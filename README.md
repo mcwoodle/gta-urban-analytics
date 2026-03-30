@@ -1,4 +1,4 @@
-# GTA Crime Data Analysis
+# GTA Urban Analytics
 
 A package to fetch and analyze open-source crime data from police services across the Greater Toronto Area (GTA).
 

@@ -23,9 +23,9 @@ VERBOSE = True
 
 def run():
     """Execute the full transform pipeline in memory, writing a single output CSV."""
-    from gta_crime_data.transform.crime.unify_datasets import unify_datasets
-    from gta_crime_data.transform.crime.filter_invalid_incidents import filter_invalid_incidents
-    from gta_crime_data.transform.crime.deduplicate_incidents import deduplicate_incidents
+    from gta_urban_analytics.transform.crime.unify_datasets import unify_datasets
+    from gta_urban_analytics.transform.crime.filter_invalid_incidents import filter_invalid_incidents
+    from gta_urban_analytics.transform.crime.deduplicate_incidents import deduplicate_incidents
 
     # Step 1: Unify
     logger.info("=" * 60)

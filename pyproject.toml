@@ -1,7 +1,7 @@
 [project]
-name = "gta-crime-data-analysis"
+name = "gta-urban-analytics"
 version = "0.1.0"
-description = "Data acquisition and analysis pipeline for Greater Toronto Area (GTA) crime data."
+description = "Data acquisition and analysis pipeline for Greater Toronto Area (GTA) urban analytics."
 authors = [
     { name = "Matt Woodley" }
 ]
@@ -20,19 +20,19 @@ dependencies = [
 ]
 
 [project.scripts]
-download = "gta_crime_data.extract.all:download"
-unify = "gta_crime_data.main:unify"
-transform = "gta_crime_data.main:transform"
-analyze = "gta_crime_data.main:analyze"
-full-pipeline = "gta_crime_data.main:full_pipeline"
-kepler = "gta_crime_data.visualize.kepler_map:main"
+download = "gta_urban_analytics.extract.all:download"
+unify = "gta_urban_analytics.main:unify"
+transform = "gta_urban_analytics.main:transform"
+analyze = "gta_urban_analytics.main:analyze"
+full-pipeline = "gta_urban_analytics.main:full_pipeline"
+kepler = "gta_urban_analytics.visualize.kepler_map:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/gta_crime_data"]
+packages = ["src/gta_urban_analytics"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

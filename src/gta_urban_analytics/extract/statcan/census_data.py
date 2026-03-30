@@ -11,7 +11,7 @@ def download_statcan_census_data():
 
     ontario_census_url = "https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/details/download-telecharger/comp/GetFile.cfm?Lang=E&FILETYPE=CSV&GEONO=006_Ontario"
     
-    # Walk up from src/gta_crime_data/extract/statcan/ to the project root
+    # Walk up from src/gta_urban_analytics/extract/statcan/ to the project root
     project_root = Path(__file__).resolve().parents[4]
     raw_data_path = project_root / "data" / "01_raw" / "statcan_census"
     

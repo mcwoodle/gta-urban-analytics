@@ -11,9 +11,9 @@ Every analysis is output in both UNFILTERED and FILTERED versions.
 Results are saved to data/03_analysis/ as CSVs.
 
 Usage:
-  uv run -m gta_crime_data.analyze.analyze -i <csv_file>
-  uv run -m gta_crime_data.analyze.analyze -i data/01_raw/York_2025_to_YYYY-MM-DD.csv
-  uv run -m gta_crime_data.analyze.analyze -i data/01_raw/York_2025_to_YYYY-MM-DD.csv --encoding cp1252
+  uv run -m gta_urban_analytics.analyze.analyze -i <csv_file>
+  uv run -m gta_urban_analytics.analyze.analyze -i data/01_raw/York_2025_to_YYYY-MM-DD.csv
+  uv run -m gta_urban_analytics.analyze.analyze -i data/01_raw/York_2025_to_YYYY-MM-DD.csv --encoding cp1252
 """
 
 import os

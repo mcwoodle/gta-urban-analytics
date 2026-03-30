@@ -4,10 +4,10 @@ GTA Crime Data Pipeline
 Entry point for the GTA crime data acquisition, transformation, and analysis pipeline.
 
 Usage:
-  uv run -m gta_crime_data.main download    # Download all regional datasets
-  uv run -m gta_crime_data.main unify       # Unify downloaded data into a single CSV
-  uv run -m gta_crime_data.main transform   # Run full transform pipeline (unify → filter → deduplicate)
-  uv run -m gta_crime_data.main analyze -i <csv_file>  # Run analysis on a dataset
+  uv run -m gta_urban_analytics.main download    # Download all regional datasets
+  uv run -m gta_urban_analytics.main unify       # Unify downloaded data into a single CSV
+  uv run -m gta_urban_analytics.main transform   # Run full transform pipeline (unify → filter → deduplicate)
+  uv run -m gta_urban_analytics.main analyze -i <csv_file>  # Run analysis on a dataset
 """
 
 import sys
@@ -19,25 +19,25 @@ def full_pipeline():
 
 def download():
     """Download all regional crime datasets into data/01_raw/."""
-    from gta_crime_data.extract.all import download
+    from gta_urban_analytics.extract.all import download
     download()
 
 
 def unify():
     """Unify all downloaded regional CSVs in memory (does not save to CSV)."""
-    from gta_crime_data.transform.crime.unify_datasets import unify_datasets
+    from gta_urban_analytics.transform.crime.unify_datasets import unify_datasets
     unify_datasets()
 
 
 def transform():
     """Run the full transform pipeline: unify → filter invalid → deduplicate."""
-    from gta_crime_data.transform.pipeline import run
+    from gta_urban_analytics.transform.pipeline import run
     run()
 
 
 def analyze():
     """Run per-region statistical analysis on a CSV file."""
-    from gta_crime_data.analyze.analyze import main as analyze_main
+    from gta_urban_analytics.analyze.analyze import main as analyze_main
     analyze_main()
 
 
