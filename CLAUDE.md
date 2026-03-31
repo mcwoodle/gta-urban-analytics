@@ -28,6 +28,16 @@ uv run pytest
 uv run pytest tests/test_foo.py::test_bar   # single test
 ```
 
+## Authoring
+
+### Commit Messages
+- Use conventional commits format: `type(scope): description`
+- Types: feat, fix, refactor, docs, test, chore
+- Keep the subject line under 72 characters
+- Add 0-3 sentences to the commit message body to describe the changes.
+- Use imperative mood ("Add feature" not "Added feature")
+- NEVER use "Co-Authored-By" in commit messages.
+
 ## Architecture
 
 The pipeline is organized into four phases:
