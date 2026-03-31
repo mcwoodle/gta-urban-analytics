@@ -18,31 +18,37 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 uv sync
 ```
 
-## 2. Data Retrieval
+## 2. Getting the Data
 
-Download all regional crime datasets into `data/01_raw/`:
+Run the full pipeline to download, transform, and analyze all regional crime datasets:
 ```bash
-uv run download
+uv run full-pipeline
 ```
 
-## 3. Data Unification
-
-Unify all downloaded CSVs into a single `data/02_transformed/unified_crime_data.csv`:
+Then process the census data notebook:
 ```bash
-uv run unify
+uv run jupyter nbconvert --to notebook --execute notebooks/02_transform_census.ipynb
 ```
 
-## 4. Analysis
+This will populate `data/01_raw/` with downloaded CSVs and `data/02_transformed/` with unified, validated output.
+
+## 3. Visualization
+
+Open `src/gta_urban_analytics/visualize/kepler_standalone_map.html` in a browser and load a dataset from `data/02_transformed/`.
+
+## 4. Individual Pipeline Stages
+
+You can also run each stage separately:
 
 ```bash
+uv run download        # Download all raw CSVs into data/01_raw/
+uv run transform       # Unify → filter → deduplicate → data/02_transformed/unified_data.csv
 uv run analyze -i data/01_raw/<your_downloaded_file>.csv
-
-# Example (York Region)
-uv run analyze -i data/01_raw/York_2025_to_YYYY-MM-DD.csv
+uv run kepler          # Generate Kepler.gl map from transformed data
 ```
-*(Note: If you encounter Windows file encoding errors, append `--encoding cp1252` to the command.)*
+*(Note: If you encounter Windows file encoding errors, append `--encoding cp1252` to the analyze command.)*
 
-### Generated Results
+### Generated Analysis Results
 Results are saved to `data/03_analysis/results_<filename>/`, including:
 * **Crime Rates**: Incidents per 1,000 residents and Violent Crime Rates
 * **Breakdowns**: Property vs. Person Crime and clear location distributions (Business vs Outdoor vs Residence)
