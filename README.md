@@ -25,12 +25,7 @@ Run the full pipeline to download, transform, and analyze all regional crime dat
 uv run full-pipeline
 ```
 
-Then process the census data notebook:
-```bash
-uv run jupyter nbconvert --to notebook --execute notebooks/02_transform_census.ipynb
-```
-
-This will populate `data/01_raw/` with downloaded CSVs and `data/02_transformed/` with unified, validated output.
+This will populate `data/01_raw/` with downloaded CSVs and `data/02_transformed/` with unified crime data and census GeoJSON.
 
 ## 3. Visualization
 
@@ -42,7 +37,7 @@ You can also run each stage separately:
 
 ```bash
 uv run download        # Download all raw CSVs into data/01_raw/
-uv run transform       # Unify → filter → deduplicate → data/02_transformed/unified_data.csv
+uv run transform       # Unify → filter → deduplicate crime data + build census GeoJSON
 uv run analyze -i data/01_raw/<your_downloaded_file>.csv
 uv run kepler          # Generate Kepler.gl map from transformed data
 ```

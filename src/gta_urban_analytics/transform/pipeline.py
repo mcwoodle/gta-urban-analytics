@@ -6,8 +6,11 @@ Runs the full sequence of data transformations in memory:
   1. Unify       — merge all regional CSVs into a single DataFrame
   2. Filter      — validate schema, separate invalid rows
   3. Deduplicate — merge multi-offence rows
+  4. Census      — build GTA census GeoJSON from StatCan data
 
-Outputs a single file: data/02_transformed/unified_data.csv
+Outputs:
+  - data/02_transformed/unified_data.csv
+  - data/02_transformed/gta_census_da.geojson
 """
 
 import os
@@ -26,10 +29,11 @@ def run():
     from gta_urban_analytics.transform.crime.unify_datasets import unify_datasets
     from gta_urban_analytics.transform.crime.filter_invalid_incidents import filter_invalid_incidents
     from gta_urban_analytics.transform.crime.deduplicate_incidents import deduplicate_incidents
+    from gta_urban_analytics.transform.census.build_gta_census import build_gta_census_geojson
 
     # Step 1: Unify
     logger.info("=" * 60)
-    logger.info("Step 1/3: Unifying regional datasets")
+    logger.info("Step 1/4: Unifying regional datasets")
     logger.info("=" * 60)
     df = unify_datasets()
 
@@ -40,14 +44,14 @@ def run():
     # Step 2: Filter invalid rows
     logger.info("")
     logger.info("=" * 60)
-    logger.info("Step 2/3: Filtering invalid rows")
+    logger.info("Step 2/4: Filtering invalid rows")
     logger.info("=" * 60)
     df = filter_invalid_incidents(df, verbose=VERBOSE)
 
     # Step 3: Deduplicate
     logger.info("")
     logger.info("=" * 60)
-    logger.info("Step 3/3: Deduplicating incidents")
+    logger.info("Step 3/4: Deduplicating incidents")
     logger.info("=" * 60)
     df = deduplicate_incidents(df, verbose=VERBOSE)
 
@@ -61,6 +65,13 @@ def run():
     logger.info(f"Writing {len(df):,} rows to {output_file}")
     logger.info("=" * 60)
     df.to_csv(output_file, index=False)
+
+    # Step 4: Build census GeoJSON
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("Step 4/4: Building GTA census GeoJSON")
+    logger.info("=" * 60)
+    build_gta_census_geojson()
 
     logger.info("Transform pipeline complete.")
 
