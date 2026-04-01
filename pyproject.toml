@@ -1,0 +1,37 @@
+[project]
+name = "gta-urban-analytics"
+version = "0.1.0"
+description = "Data acquisition and analysis pipeline for Greater Toronto Area (GTA) urban analytics."
+authors = [
+    { name = "Matt Woodley" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0.0",
+    "pyproj>=3.7.1",
+    "jupyter>=1.0.0",
+    "ipykernel>=6.0.0",
+    "pandera>=0.30.1",
+
+    "setuptools<71",
+    "geopandas>=1.1.3",
+    "tqdm>=4.66.0",
+]
+
+[project.scripts]
+download = "gta_urban_analytics.extract.all:download"
+unify = "gta_urban_analytics.main:unify"
+transform = "gta_urban_analytics.main:transform"
+analyze = "gta_urban_analytics.main:analyze"
+full-pipeline = "gta_urban_analytics.main:full_pipeline"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gta_urban_analytics"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
