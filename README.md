@@ -1,6 +1,6 @@
 # GTA Urban Analytics
 
-A package to fetch and analyze open-source crime data from police services across the Greater Toronto Area (GTA).
+An ETL pipeline that downloads, unifies, validates, and analyzes crime data from 5 Greater Toronto Area police services (Toronto, York, Peel, Halton, Durham) alongside Statistics Canada census data.
 
 ## 1. Setup
 
