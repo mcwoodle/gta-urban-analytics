@@ -18,7 +18,7 @@ uv sync
 uv run download        # Download all raw CSVs into data/01_raw/
 uv run transform       # Unify → filter → deduplicate → data/02_transformed/unified_data.csv
 uv run analyze -i data/01_raw/<file>.csv [--encoding cp1252]
-uv run kepler          # Generate Kepler.gl map from transformed data
+
 uv run full-pipeline   # Run download + transform + analyze end-to-end
 ```
 
@@ -66,7 +66,7 @@ Per-municipality statistics including crime rate per 1,000 residents (from 2021 
 |------|----------|
 | `data/01_raw/` | Downloaded CSVs (gitignored) |
 | `data/02_transformed/` | `unified_data.csv`, `invalid_data.csv`, yearly partitions |
-| `data/03_visualizations/` | Kepler.gl output |
+
 
 ## Notebooks
 

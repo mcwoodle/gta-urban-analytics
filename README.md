@@ -29,7 +29,7 @@ This will populate `data/01_raw/` with downloaded CSVs and `data/02_transformed/
 
 ## 3. Visualization
 
-Open `src/gta_urban_analytics/visualize/kepler_standalone_map.html` in a browser and load a dataset from `data/02_transformed/`.
+To visualize the transformed data, load `data/02_transformed/unified_data.csv` into [Kepler.gl Demo](https://kepler.gl/demo).
 
 ## 4. Individual Pipeline Stages
 
@@ -39,7 +39,7 @@ You can also run each stage separately:
 uv run download        # Download all raw CSVs into data/01_raw/
 uv run transform       # Unify → filter → deduplicate crime data + build census GeoJSON
 uv run analyze -i data/01_raw/<your_downloaded_file>.csv
-uv run kepler          # Generate Kepler.gl map from transformed data
+
 ```
 *(Note: If you encounter Windows file encoding errors, append `--encoding cp1252` to the analyze command.)*
 

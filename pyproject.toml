@@ -13,7 +13,7 @@ dependencies = [
     "jupyter>=1.0.0",
     "ipykernel>=6.0.0",
     "pandera>=0.30.1",
-    "keplergl>=0.3.0",
+
     "setuptools<71",
     "geopandas>=1.1.3",
     "tqdm>=4.66.0",
@@ -25,7 +25,6 @@ unify = "gta_urban_analytics.main:unify"
 transform = "gta_urban_analytics.main:transform"
 analyze = "gta_urban_analytics.main:analyze"
 full-pipeline = "gta_urban_analytics.main:full_pipeline"
-kepler = "gta_urban_analytics.visualize.kepler_map:main"
 
 [build-system]
 requires = ["hatchling"]
