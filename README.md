@@ -13,6 +13,14 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
+**Install `yarn` (if not already):**
+```bash
+nvm use 24 --install
+nvm alias default 24
+corepack enable
+corepack prepare yarn@stable --activate
+```
+
 **Install dependencies:**
 ```bash
 uv sync
