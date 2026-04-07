@@ -1,0 +1,40 @@
+{
+  "name": "vizualize-kepler-map",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Kepler.gl visualization of the GTA Urban Analytics unified crime + census data.",
+  "scripts": {
+    "start": "node esbuild.config.mjs --start",
+    "build": "node esbuild.config.mjs --build",
+    "build:standalone": "node esbuild.config.mjs --build && node scripts/build-standalone.mjs",
+    "build:all": "yarn build:standalone"
+  },
+  "dependencies": {
+    "@kepler.gl/actions": "^3.1.10",
+    "@kepler.gl/components": "^3.1.10",
+    "@kepler.gl/processors": "^3.1.10",
+    "@kepler.gl/reducers": "^3.1.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-redux": "^8.0.5",
+    "react-virtualized": "^9.22.5",
+    "redux": "^4.2.1",
+    "react-palm": "^3.3.8",
+    "assert": "^2.1.0",
+    "events": "^3.3.0",
+    "buffer": "^6.0.3",
+    "process": "^0.11.10",
+    "stream-browserify": "^3.0.0",
+    "util": "^0.12.5"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.3",
+    "@types/react": "^18.0.28",
+    "@types/react-dom": "^18.0.11",
+    "@types/react-redux": "^7.1.25",
+    "esbuild": "^0.25.0",
+    "esbuild-plugin-copy": "^2.1.1",
+    "typescript": "^4.9.5"
+  }
+}

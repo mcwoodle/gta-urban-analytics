@@ -511,3 +511,45 @@ The pipeline work lands first so the viz never has a reason to grow its own scri
 12. Polish: `vizualize-kepler-map/README.md` documents that `uv run full-pipeline` is the only data prereq, the dev/prod/standalone build commands, the browser version requirements for `DecompressionStream`, and the Mapbox-token-at-build-time requirement (multi-file only). Add `.env.example` and ensure `.gitignore` covers `dist/`, `node_modules/`, `.env`, and `public/data`.
 
 Each step leaves a runnable app — every commit is testable.
+
+## Implementation Progress (2026-04-07)
+
+### Pipeline (Python side) — complete
+
+- `src/gta_urban_analytics/transform/census/enrich_with_crime_rate.py` — spatial-joins crime points to DA polygons and writes `crime_count` + `crime_rate_per_1k` back into `data/02_transformed/gta_census_da.geojson` in place. Made idempotent (drops prior enrichment columns before merging) so re-runs don't produce `crime_count_x/_y`. Test run: 745,333 of 754,113 incidents matched a DA (~99 %).
+- `src/gta_urban_analytics/transform/crime/build_shooting_arcs.py` — filters to `(?i)shoot|firearm` OR `mapped_crime_category == "Weapons"`, computes municipality centroids from all crime points, writes `data/02_transformed/shooting_arcs.csv` with `id, src_lat, src_lon, dst_lat, dst_lon, year, municipality, count_in_muni`. Test run: 10,022 shooting incidents → 9,768 arcs.
+- `src/gta_urban_analytics/transform/build_standalone_compact.py` — writes `data/02_transformed/standalone/`: `unified_data_compact.csv` (5 columns, 5-decimal lat/lon, all 754K rows preserved for radius-slider interactivity), `gta_census_da_compact.geojson` (polygons simplified at 20 m tolerance in EPSG:26917), and a straight copy of `shooting_arcs.csv`. Measured sizes: 32.7 MB + 6.0 MB + 0.9 MB raw; 5.3 MB + 1.3 MB + 0.2 MB gzipped.
+- `src/gta_urban_analytics/transform/pipeline.py` — extended from 4 to 7 steps; runs the three new modules in order after dedupe.
+
+### Visualization package — complete
+
+- Scaffolded `vizualize-kepler-map/` with `package.json`, `tsconfig.json`, `.yarnrc.yml`, `.env.example`, `README.md`, `public/index.html`, `public/data` → `../../data/02_transformed` symlink.
+- `esbuild.config.mjs` — dual `--start` / `--build` modes, loads `.env`, production bundle is a single non-split IIFE, dev mode symlinks `dist/data` → `public/data`.
+- `src/config/visualization.ts` — central `VIZ_CONFIG` with 3 datasets and 4 layers (hexbin, income choropleth, crime-rate-per-1k choropleth sharing the same `census_da` dataset, arcs), `mapState` centered on the GTA, `mapStyle: 'dark'`.
+- `src/data/types.ts` — discriminated union of layer specs (`HexbinLayerSpec | GeoJsonLayerSpec | ArcLayerSpec`).
+- `src/data/loaders.ts` — fetch-based loader using `processCsvData` / `processGeojson`; forks on `window.__STANDALONE_MODE__`; includes a dev-only `validateColorFields` guard.
+- `src/data/standaloneLoader.ts` — base64 → `Uint8Array` → `Blob.stream().pipeThrough(new DecompressionStream('gzip'))` → text. Uses native browser API only (Chrome 80+, Firefox 113+, Safari 16.4+).
+- `src/layers/{hexbinLayer,geojsonLayer,arcLayer}.ts` + `index.ts` — pure config-to-Kepler-layer builders with exhaustiveness checking in the dispatcher.
+- `src/store.ts` — `keplerGlReducer` + `enhanceReduxMiddleware([taskMiddleware])` from `react-palm`.
+- `src/hooks/useHexbinLayer.ts` — selector under `state.keplerGl.map.visState.layers`.
+- `src/components/RadiusControl.tsx` — absolutely positioned slider, 150 ms debounce, dispatches `wrapTo('map')(layerVisConfigChange(...))`.
+- `src/components/MapShell.tsx` — loads datasets on mount, dispatches `addDataToMap`, branches on `isStandalone()` to use Carto dark-matter and skip Mapbox tokens.
+- `src/app.tsx` — ReactDOM mount with `<Provider store={store}>`.
+- `scripts/build-standalone.mjs` — gzips (level 9) the three compact files, base64-encodes them, injects `window.__STANDALONE_MODE__` + `window.__STANDALONE_DATA__`, inlines the JS bundle (with `</script>` escaping), writes `dist/standalone.html`.
+
+### Build verification (from `vizualize-kepler-map/`)
+
+- `npm install --legacy-peer-deps` — 856 packages. `--legacy-peer-deps` required: transitive dep `enzyme-adapter-utils` (via `react-palm`) pins React < 17 while the viz uses React 18.
+- Extra polyfill deps added for Node builtins pulled in by `@kepler.gl/utils` and `thrift`: `assert`, `events`, `buffer`, `process`, `stream-browserify`, `util`.
+- `npm run build` — succeeds. `dist/bundle.js` 12.0 MB, built in ~500 ms. Copies `unified_data.csv` (92.1 MB), `gta_census_da.geojson` (36.0 MB), `shooting_arcs.csv` (0.9 MB) into `dist/data/`.
+- `npm run build:standalone` — succeeds. Produces `dist/standalone.html` at 20.90 MB with all three datasets embedded (orig 39.58 MB → gz 6.69 MB → b64 8.92 MB). Sanity check confirms `window.__STANDALONE_MODE__`, `window.__STANDALONE_DATA__`, and all three dataset keys (`crime_points`, `census_da`, `shooting_arcs`) are present in the emitted HTML.
+
+### Open items (runtime verification not yet performed)
+
+The build pipeline is green end-to-end, but no browser has actually opened any of the three artifacts yet. Still to do:
+
+1. `npm start` — confirm the dev server at `http://localhost:8080` renders all four layers.
+2. `cd dist && python -m http.server 8000` — confirm the multi-file static site renders identically.
+3. Open `dist/standalone.html` directly via `file://` — confirm `DecompressionStream` decodes embedded data, Carto basemap loads, and all four layers render without a Mapbox token.
+4. Exercise the radius slider and confirm the `worldUnitSize` debounce behaves.
+5. Run verification steps 1–16 from the plan above.
