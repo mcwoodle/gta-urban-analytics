@@ -27,35 +27,51 @@ _project_root = os.path.normpath(
 _SHOOTING_REGEX = r"(?i)shoot|firearm"
 
 
-def build_shooting_arcs(verbose: bool = True) -> pd.DataFrame:
+def build_shooting_arcs(
+    crime_df: pd.DataFrame | None = None,
+    output_dir: str | None = None,
+    verbose: bool = True,
+) -> pd.DataFrame:
     """Build the shooting-arcs CSV for the Kepler arc layer.
+
+    Parameters:
+        crime_df:   Pre-loaded crime DataFrame.  When *None* (default) the
+                    full ``unified_data.csv`` is read from disk.
+        output_dir: Directory to write ``shooting_arcs.csv`` into.  Defaults
+                    to ``data/02_transformed/``.
+        verbose:    Log progress messages.
 
     Returns:
         The output DataFrame (same content as the written CSV).
     """
-    transformed_dir = os.path.join(_project_root, "data", "02_transformed")
-    crime_csv = os.path.join(transformed_dir, "unified_data.csv")
-    output_csv = os.path.join(transformed_dir, "shooting_arcs.csv")
+    if output_dir is None:
+        output_dir = os.path.join(_project_root, "data", "02_transformed")
+    output_csv = os.path.join(output_dir, "shooting_arcs.csv")
 
-    if not os.path.exists(crime_csv):
-        raise FileNotFoundError(
-            f"Missing {crime_csv}. Run the unify/filter/deduplicate steps first."
+    if crime_df is None:
+        crime_csv = os.path.join(_project_root, "data", "02_transformed", "unified_data.csv")
+        if not os.path.exists(crime_csv):
+            raise FileNotFoundError(
+                f"Missing {crime_csv}. Run the unify/filter/deduplicate steps first."
+            )
+        if verbose:
+            logger.info("Loading unified crime data...")
+        df = pd.read_csv(
+            crime_csv,
+            usecols=[
+                "mapped_crime_category",
+                "original_crime_type",
+                "occurrence_date",
+                "lat",
+                "lon",
+                "municipality",
+            ],
+            low_memory=False,
         )
-
-    if verbose:
-        logger.info("Loading unified crime data...")
-    df = pd.read_csv(
-        crime_csv,
-        usecols=[
-            "mapped_crime_category",
-            "original_crime_type",
-            "occurrence_date",
-            "lat",
-            "lon",
-            "municipality",
-        ],
-        low_memory=False,
-    )
+    else:
+        needed = {"mapped_crime_category", "original_crime_type",
+                  "occurrence_date", "lat", "lon", "municipality"}
+        df = crime_df[list(needed & set(crime_df.columns))].copy()
 
     # Require coordinates and municipality to be able to emit an arc at all.
     df = df.dropna(subset=["lat", "lon", "municipality"])
@@ -109,6 +125,7 @@ def build_shooting_arcs(verbose: bool = True) -> pd.DataFrame:
         "count_in_muni": merged["count_in_muni"].astype(int).values,
     })
 
+    os.makedirs(output_dir, exist_ok=True)
     if verbose:
         logger.info(f"Writing {len(out):,} arcs to {output_csv}")
     out.to_csv(output_csv, index=False)

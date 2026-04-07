@@ -55,9 +55,10 @@ _COMPACT_CENSUS_PROPERTIES = [
 ]
 
 
-def _compact_crime(verbose: bool) -> pd.DataFrame:
-    transformed_dir = os.path.join(_project_root, "data", "02_transformed")
-    src = os.path.join(transformed_dir, "unified_data.csv")
+def _compact_crime(verbose: bool, source_dir: str | None = None) -> pd.DataFrame:
+    if source_dir is None:
+        source_dir = os.path.join(_project_root, "data", "02_transformed")
+    src = os.path.join(source_dir, "unified_data.csv")
 
     if verbose:
         logger.info("Reading full unified crime CSV...")
@@ -73,9 +74,10 @@ def _compact_crime(verbose: bool) -> pd.DataFrame:
     return df
 
 
-def _compact_census(verbose: bool) -> gpd.GeoDataFrame:
-    transformed_dir = os.path.join(_project_root, "data", "02_transformed")
-    src = os.path.join(transformed_dir, "gta_census_da.geojson")
+def _compact_census(verbose: bool, source_dir: str | None = None) -> gpd.GeoDataFrame:
+    if source_dir is None:
+        source_dir = os.path.join(_project_root, "data", "02_transformed")
+    src = os.path.join(source_dir, "gta_census_da.geojson")
 
     if verbose:
         logger.info("Reading enriched census GeoJSON...")
@@ -103,21 +105,28 @@ def _compact_census(verbose: bool) -> gpd.GeoDataFrame:
     return gdf
 
 
-def build_standalone_compact(verbose: bool = True) -> None:
-    """Produce compact variants of all three viz datasets."""
-    transformed_dir = os.path.join(_project_root, "data", "02_transformed")
-    out_dir = os.path.join(transformed_dir, "standalone")
+def build_standalone_compact(source_dir: str | None = None, verbose: bool = True) -> None:
+    """Produce compact variants of all three viz datasets.
+
+    Parameters:
+        source_dir: Directory containing the full-size files.  Defaults to
+                    ``data/02_transformed/``.
+        verbose:    Log progress messages.
+    """
+    if source_dir is None:
+        source_dir = os.path.join(_project_root, "data", "02_transformed")
+    out_dir = os.path.join(source_dir, "standalone")
     os.makedirs(out_dir, exist_ok=True)
 
     # --- Crime points ---
-    crime = _compact_crime(verbose)
+    crime = _compact_crime(verbose, source_dir=source_dir)
     crime_out = os.path.join(out_dir, "unified_data_compact.csv")
     if verbose:
         logger.info(f"Writing {len(crime):,} rows to {crime_out}")
     crime.to_csv(crime_out, index=False)
 
     # --- Census DAs ---
-    census = _compact_census(verbose)
+    census = _compact_census(verbose, source_dir=source_dir)
     census_out = os.path.join(out_dir, "gta_census_da_compact.geojson")
     if os.path.exists(census_out):
         os.remove(census_out)
@@ -126,7 +135,7 @@ def build_standalone_compact(verbose: bool = True) -> None:
     census.to_file(census_out, driver="GeoJSON")
 
     # --- Shooting arcs (copy unchanged) ---
-    arcs_src = os.path.join(transformed_dir, "shooting_arcs.csv")
+    arcs_src = os.path.join(source_dir, "shooting_arcs.csv")
     arcs_out = os.path.join(out_dir, "shooting_arcs.csv")
     if os.path.exists(arcs_src):
         if verbose:

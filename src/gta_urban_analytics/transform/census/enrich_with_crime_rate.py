@@ -28,28 +28,42 @@ _project_root = os.path.normpath(
 _MIN_POPULATION_FOR_RATE = 50
 
 
-def enrich_census_with_crime_rate(verbose: bool = True) -> gpd.GeoDataFrame:
-    """Add crime_count and crime_rate_per_1k to gta_census_da.geojson in place.
+def enrich_census_with_crime_rate(
+    crime_df: pd.DataFrame | None = None,
+    census_gdf: gpd.GeoDataFrame | None = None,
+    output_dir: str | None = None,
+    verbose: bool = True,
+) -> gpd.GeoDataFrame:
+    """Add crime_count and crime_rate_per_1k to gta_census_da.geojson.
+
+    Parameters:
+        crime_df:    Pre-loaded crime DataFrame (needs ``lat``, ``lon``).
+                     When *None* the full ``unified_data.csv`` is read.
+        census_gdf:  Pre-loaded census GeoDataFrame.  When *None* the file
+                     at ``<output_dir>/gta_census_da.geojson`` is read.
+        output_dir:  Directory containing (and receiving) the GeoJSON.
+                     Defaults to ``data/02_transformed/``.
+        verbose:     Log progress messages.
 
     Returns:
         The enriched GeoDataFrame.
     """
-    transformed_dir = os.path.join(_project_root, "data", "02_transformed")
-    crime_csv = os.path.join(transformed_dir, "unified_data.csv")
-    census_geojson = os.path.join(transformed_dir, "gta_census_da.geojson")
+    if output_dir is None:
+        output_dir = os.path.join(_project_root, "data", "02_transformed")
+    census_geojson = os.path.join(output_dir, "gta_census_da.geojson")
 
-    if not os.path.exists(crime_csv):
-        raise FileNotFoundError(
-            f"Missing {crime_csv}. Run the unify/filter/deduplicate steps first."
-        )
-    if not os.path.exists(census_geojson):
-        raise FileNotFoundError(
-            f"Missing {census_geojson}. Run build_gta_census_geojson() first."
-        )
+    # --- Load census DAs ---
+    if census_gdf is not None:
+        das = census_gdf.copy()
+    else:
+        if not os.path.exists(census_geojson):
+            raise FileNotFoundError(
+                f"Missing {census_geojson}. Run build_gta_census_geojson() first."
+            )
+        if verbose:
+            logger.info("Loading census Dissemination Areas...")
+        das = gpd.read_file(census_geojson)
 
-    if verbose:
-        logger.info("Loading census Dissemination Areas...")
-    das = gpd.read_file(census_geojson)
     if das.crs is None or das.crs.to_epsg() != 4326:
         das = das.to_crs(epsg=4326)
 
@@ -59,21 +73,29 @@ def enrich_census_with_crime_rate(verbose: bool = True) -> gpd.GeoDataFrame:
         if col in das.columns:
             das = das.drop(columns=col)
 
-    if verbose:
-        logger.info("Loading unified crime points...")
-    crime_df = pd.read_csv(
-        crime_csv,
-        usecols=["lat", "lon"],
-        low_memory=False,
-    )
-    # Drop rows missing coordinates — they can't be spatially joined.
-    crime_df = crime_df.dropna(subset=["lat", "lon"])
+    # --- Load crime points ---
+    if crime_df is not None:
+        crime_points_df = crime_df[["lat", "lon"]].dropna().copy()
+    else:
+        crime_csv = os.path.join(
+            _project_root, "data", "02_transformed", "unified_data.csv"
+        )
+        if not os.path.exists(crime_csv):
+            raise FileNotFoundError(
+                f"Missing {crime_csv}. Run the unify/filter/deduplicate steps first."
+            )
+        if verbose:
+            logger.info("Loading unified crime points...")
+        crime_points_df = pd.read_csv(
+            crime_csv, usecols=["lat", "lon"], low_memory=False
+        )
+        crime_points_df = crime_points_df.dropna(subset=["lat", "lon"])
 
     if verbose:
-        logger.info(f"Building GeoDataFrame of {len(crime_df):,} crime points...")
+        logger.info(f"Building GeoDataFrame of {len(crime_points_df):,} crime points...")
     crime_points = gpd.GeoDataFrame(
-        crime_df,
-        geometry=gpd.points_from_xy(crime_df["lon"], crime_df["lat"]),
+        crime_points_df,
+        geometry=gpd.points_from_xy(crime_points_df["lon"], crime_points_df["lat"]),
         crs="EPSG:4326",
     )
 
@@ -103,6 +125,7 @@ def enrich_census_with_crime_rate(verbose: bool = True) -> gpd.GeoDataFrame:
     enriched.loc[too_small, "crime_count"] = pd.NA
 
     # Overwrite the census file in place.
+    os.makedirs(output_dir, exist_ok=True)
     if verbose:
         logger.info(f"Writing enriched GeoJSON back to {census_geojson}...")
     # GeoJSON driver doesn't append; overwrite requires delete first.
