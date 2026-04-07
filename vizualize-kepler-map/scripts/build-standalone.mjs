@@ -132,7 +132,7 @@ async function main() {
 
   const html = htmlTemplate.replace(
     /<script src=['"]\.?\/?bundle\.js['"]><\/script>/,
-    inlinedScripts
+    () => inlinedScripts
   );
 
   if (!html.includes('__STANDALONE_DATA__')) {
