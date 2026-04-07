@@ -110,7 +110,16 @@ function openURL(url) {
   };
   const command = cmd[process.platform];
   if (command) {
-    spawn(command[0], [...command.slice(1), url], { stdio: 'ignore', detached: true });
+    const child = spawn(command[0], [...command.slice(1), url], { stdio: 'ignore', detached: true });
+    child.on('error', (err) => {
+      if (err.code === 'ENOENT' && command[0] === 'xdg-open') {
+        console.warn('\n[esbuild] Failed to open browser automatically: "xdg-open" command not found.');
+        console.warn('[esbuild] If you are using WSL, you can fix this by running:');
+        console.warn('[esbuild]   sudo apt-get install xdg-utils\n');
+      } else {
+        console.error('[esbuild] Failed to open browser:', err);
+      }
+    });
   }
 }
 
