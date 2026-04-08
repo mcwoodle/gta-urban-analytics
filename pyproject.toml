@@ -25,6 +25,7 @@ unify = "gta_urban_analytics.main:unify"
 transform = "gta_urban_analytics.main:transform"
 analyze = "gta_urban_analytics.main:analyze"
 full-pipeline = "gta_urban_analytics.main:full_pipeline"
+build-map = "gta_urban_analytics.visualize.build:build_map"
 
 [build-system]
 requires = ["hatchling"]

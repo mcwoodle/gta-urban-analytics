@@ -123,39 +123,7 @@ function openURL(url) {
   }
 }
 
-/** Copy the full data files from ../data/02_transformed into dist/data for
- * the multi-file static site. Uses the public/data symlink as its source,
- * so dev and prod both read from the same canonical location.
- */
-function copyDataToDist() {
-  const src = path.join(__dirname, 'public', 'data');
-  const dst = path.join(__dirname, 'dist', 'data');
-
-  if (!fs.existsSync(src)) {
-    console.warn(
-      `[esbuild] public/data does not exist — did you run \`ln -s ../../data/02_transformed public/data\`?`
-    );
-    return;
-  }
-
-  fs.mkdirSync(dst, { recursive: true });
-
-  // Copy the three files the viz actually loads (plus shooting_arcs.csv for
-  // the arc layer). Deliberately NOT copying the `standalone/` subdirectory —
-  // the standalone build reads it from outside dist/.
-  const files = ['unified_data.csv', 'gta_census_da.geojson', 'shooting_arcs.csv'];
-  for (const f of files) {
-    const from = path.join(src, f);
-    const to = path.join(dst, f);
-    if (!fs.existsSync(from)) {
-      console.warn(`[esbuild] skipping missing data file: ${from}`);
-      continue;
-    }
-    fs.copyFileSync(from, to);
-    const mb = (fs.statSync(to).size / (1024 * 1024)).toFixed(1);
-    console.info(`[esbuild] copied ${f} (${mb} MB) → dist/data/`);
-  }
-}
+// Removed copyDataToDist function
 
 // ------------------------------------------------------------------------
 // Entrypoint
@@ -174,9 +142,9 @@ function copyDataToDist() {
         path.join(__dirname, 'dist/esbuild-metadata.json'),
         JSON.stringify(result.metafile)
       );
-      copyDataToDist();
       const size = (fs.statSync(path.join(__dirname, 'dist/bundle.js')).size / (1024 * 1024)).toFixed(1);
       console.info(`[esbuild] production build complete — bundle.js ${size} MB`);
+      process.exit(0);
     } catch (e) {
       console.error(e);
       process.exit(1);
@@ -195,7 +163,7 @@ function copyDataToDist() {
       });
       await ctx.watch();
       await ctx.serve({
-        servedir: path.join(__dirname, 'dist'),
+        servedir: path.join(__dirname, '..'),
         port,
         fallback: path.join(__dirname, 'dist/index.html'),
         onRequest: ({ remoteAddress, method, path: reqPath, status, timeInMS }) => {
@@ -203,13 +171,8 @@ function copyDataToDist() {
         }
       });
 
-      // Also serve raw data files directly from public/data via a simple
-      // symlink under dist/data so the dev server can fetch them without
-      // needing a full copy.
-      ensureDevDataLink();
-
-      console.info(`[esbuild] dev server running at http://localhost:${port}`);
-      openURL(`http://localhost:${port}`);
+      console.info(`[esbuild] dev server running at http://localhost:${port}/vizualize-kepler-map/dist/`);
+      openURL(`http://localhost:${port}/vizualize-kepler-map/dist/`);
     } catch (e) {
       console.error(e);
       process.exit(1);
@@ -217,24 +180,4 @@ function copyDataToDist() {
   }
 })();
 
-function ensureDevDataLink() {
-  const distDataLink = path.join(__dirname, 'dist', 'data');
-  const target = path.join('..', 'public', 'data');
-  try {
-    fs.mkdirSync(path.join(__dirname, 'dist'), { recursive: true });
-    if (fs.existsSync(distDataLink)) {
-      const stat = fs.lstatSync(distDataLink);
-      if (stat.isSymbolicLink() || stat.isFile()) {
-        // Ok — leave existing link/file alone.
-        return;
-      }
-      // It's a directory (from a prior --build run). Clean it up so the
-      // symlink can take its place during dev.
-      fs.rmSync(distDataLink, { recursive: true, force: true });
-    }
-    fs.symlinkSync(target, distDataLink, 'dir');
-    console.info('[esbuild] symlinked dist/data → public/data for dev server');
-  } catch (e) {
-    console.warn('[esbuild] could not create dist/data symlink:', e.message);
-  }
-}
+// removed helpers

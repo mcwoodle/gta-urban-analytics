@@ -46,9 +46,7 @@ export const VIZ_CONFIG: VisualizationConfig = {
     {
       id: 'crime_points',
       label: 'Unified GTA Crime',
-      // RELATIVE URL (no leading slash) so the static build deploys cleanly
-      // under any path prefix and standalone.html works from a sibling dir.
-      url: 'data/2025/unified_data.csv',
+      url: '../../data/02_transformed/2025/unified_data.csv',
       visible: true
     },
     {
@@ -56,13 +54,13 @@ export const VIZ_CONFIG: VisualizationConfig = {
       label: 'Census Dissemination Areas',
       // Layers 2 and 3 both consume this single file — Median_Income and
       // crime_rate_per_1k are both properties on the same GeoJSON.
-      url: 'data/2025/gta_census_da.geojson',
+      url: '../../data/02_transformed/2025/gta_census_da.geojson',
       visible: true
     },
     {
       id: 'shooting_arcs',
       label: 'Shooting → Centroid Arcs',
-      url: 'data/2025/shooting_arcs.csv',
+      url: '../../data/02_transformed/2025/shooting_arcs.csv',
       visible: true
     }
   ],
