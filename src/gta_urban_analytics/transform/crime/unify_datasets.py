@@ -146,9 +146,10 @@ def unify_datasets() -> pd.DataFrame:
             dates = pd.to_datetime(df['OCC_DATE'], errors='coerce').dt.strftime('%Y-%m-%d')
             crime_type = df.get('OFFENCE')
         elif 'CRIME_TYPE' in df.columns:
-            # TPS Crime App YTD feature service export
+            # TPS Crime App YTD feature service export.
+            # OCC_DATE_AGOL arrives as epoch milliseconds in the GeoJSON export.
             toronto_ytd_schema.validate(df)
-            dates = pd.to_datetime(df['OCC_DATE_AGOL'], errors='coerce').dt.strftime('%Y-%m-%d')
+            dates = pd.to_datetime(df['OCC_DATE_AGOL'], unit='ms', errors='coerce').dt.strftime('%Y-%m-%d')
             crime_type = df.get('CRIME_TYPE')
         else:
             logging.warning(f"Skipping unknown Toronto file shape: {f}")
