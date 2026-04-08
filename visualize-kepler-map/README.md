@@ -23,7 +23,7 @@ needs, including the enriched census GeoJSON (with `crime_count` and
 ## Setup
 
 ```bash
-cd vizualize-kepler-map
+cd visualize-kepler-map
 # Symlink should already exist; create if not.
 [ -L public/data ] || ln -s ../../data/02_transformed public/data
 yarn install

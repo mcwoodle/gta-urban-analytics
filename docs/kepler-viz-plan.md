@@ -2,7 +2,7 @@
 
 ## Context
 
-The `gta-urban-analytics` repo already produces unified crime data and census polygons in `data/02_transformed/` via `uv run full-pipeline`. This plan adds a self-contained `vizualize-kepler-map/` sub-project that renders the same data as a curated, four-layer Kepler.gl map, driven from a single typed config file so layer choice and styling can be tweaked without touching React code. The map fits the GTA on first paint, supports a custom radius slider for the hexbin, and uses the central config to hold all knobs (datasets, layers, colors, opacity, sizes).
+The `gta-urban-analytics` repo already produces unified crime data and census polygons in `data/02_transformed/` via `uv run full-pipeline`. This plan adds a self-contained `visualize-kepler-map/` sub-project that renders the same data as a curated, four-layer Kepler.gl map, driven from a single typed config file so layer choice and styling can be tweaked without touching React code. The map fits the GTA on first paint, supports a custom radius slider for the hexbin, and uses the central config to hold all knobs (datasets, layers, colors, opacity, sizes).
 
 **Strict separation of concerns:** the visualization sub-project performs **zero data transformation**. Every file it loads is produced by `uv run full-pipeline`. The two derived datasets the viz needs (DA crime-rate enrichment, shooting arcs) are added as new steps inside the existing `src/gta_urban_analytics/transform/` tree — see §"Pipeline Transform Additions" below.
 
@@ -26,7 +26,7 @@ The Kepler.gl reference is already cloned at `/home/mcwoodle/workspace/kepler.gl
 ## Sub-Project Layout
 
 ```
-/home/mcwoodle/workspace/crime-data/vizualize-kepler-map/
+/home/mcwoodle/workspace/crime-data/visualize-kepler-map/
 ├── package.json                # esbuild + @kepler.gl/* + react 18 + redux; scripts: start, build, build:standalone
 ├── esbuild.config.mjs          # dual-mode: dev server :8080 OR production bundle → dist/
 ├── scripts/
@@ -65,7 +65,7 @@ The Kepler.gl reference is already cloned at `/home/mcwoodle/workspace/kepler.gl
         └── useHexbinLayer.ts   # selector returning the hexbin layer instance
 ```
 
-`public/data/` will be a **symlink** to `../../data/02_transformed/` so the dev server serves the existing files in-place — no copying, no duplication. Create with `ln -s ../../data/02_transformed public/data` from inside `vizualize-kepler-map/`. Symlink target is gitignored.
+`public/data/` will be a **symlink** to `../../data/02_transformed/` so the dev server serves the existing files in-place — no copying, no duplication. Create with `ln -s ../../data/02_transformed public/data` from inside `visualize-kepler-map/`. Symlink target is gitignored.
 
 ---
 
@@ -416,7 +416,7 @@ uv run full-pipeline   # download + transform (incl. new enrichment + arc steps)
 After this completes, `data/02_transformed/` contains every file the viz needs:
 `unified_data.csv`, `gta_census_da.geojson` (now enriched with `crime_count` + `crime_rate_per_1k`), and `shooting_arcs.csv`.
 
-### One-time viz setup (in WSL, from `/home/mcwoodle/workspace/crime-data/vizualize-kepler-map/`)
+### One-time viz setup (in WSL, from `/home/mcwoodle/workspace/crime-data/visualize-kepler-map/`)
 
 ```bash
 ln -s ../../data/02_transformed public/data       # symlink data into the dev server
@@ -427,21 +427,21 @@ cp .env.example .env                               # then set MapboxAccessToken=
 ### Dev loop
 
 ```bash
-cd vizualize-kepler-map
+cd visualize-kepler-map
 yarn start                                          # http://localhost:8080
 ```
 
 ### Production build (static site output)
 
 ```bash
-cd vizualize-kepler-map
+cd visualize-kepler-map
 yarn build:standalone                               # → dist/index.html, dist/bundle.js, dist/data/, dist/standalone.html
 ```
 
 Smoke-test the static output locally:
 
 ```bash
-cd vizualize-kepler-map/dist
+cd visualize-kepler-map/dist
 python -m http.server 8000                          # open http://localhost:8000/ and http://localhost:8000/standalone.html
 ```
 
@@ -456,7 +456,7 @@ To deploy: copy the entire `dist/` folder to any static host. No Node runtime, n
 5. **Layer 3 (Crime rate per 1k)** — Toggle on. Same DA polygons but colored by `crime_rate_per_1k`. Should clearly highlight high-incident urban cores (downtown Toronto, central Mississauga, central Markham). Tooltip shows `crime_count`, `crime_rate_per_1k`, `Population`.
 6. **Layer 4 (Arcs)** — Toggle on. 3D arcs render from each shooting location to its municipality centroid. Color varies by year. Tilt the map to see the height encoding.
 7. **Config edit cycle** — Set `enabled: false` on any layer in `visualization.ts`, save → esbuild rebuilds → browser reloads → layer disappears. Change a `colorRange` array → reload → colors update. No React/store edits needed.
-8. **Mapbox token absent** — With no `.env`, Kepler shows a no-token error overlay rather than a white screen (document this in `vizualize-kepler-map/README.md`).
+8. **Mapbox token absent** — With no `.env`, Kepler shows a no-token error overlay rather than a white screen (document this in `visualize-kepler-map/README.md`).
 9. **Performance check** — Initial load with 754K points should take <10s on a modern laptop. The hexbin GPU pipeline keeps interaction fluid. If the radius slider feels janky, debounce it 150ms inside `RadiusControl.tsx`.
 10. **Static build — multi-file** — `yarn build` produces `dist/index.html`, `dist/bundle.js`, and a populated `dist/data/` directory. `cd dist && python -m http.server 8000` then opening `http://localhost:8000/` renders the same map as the dev server with no Node process running. Verify the Network tab shows data fetched from relative `data/...` URLs (no leading slash, no `localhost:8080`).
 11. **Standalone HTML — `file://` open (THE critical test)** — `yarn build:standalone` produces `dist/standalone.html`. **Open the file directly via the browser's file picker or by double-clicking** (URL bar shows `file:///…/dist/standalone.html`). The map must render fully: hexbin, choropleths, arcs all load. The Network tab should show **zero** `data/...` requests — only Carto basemap tiles (which are CORS-OK from `null` origin). DevTools console should log a single "loaded from embedded data" message from `standaloneLoader.ts`.
@@ -477,14 +477,14 @@ To deploy: copy the entire `dist/` folder to any static host. No Node runtime, n
 - `/home/mcwoodle/workspace/crime-data/src/gta_urban_analytics/transform/build_standalone_compact.py` — slim variants for HTML embedding (NEW)
 
 **Visualization (TypeScript — pure rendering, no transformation):**
-- `/home/mcwoodle/workspace/crime-data/vizualize-kepler-map/src/config/visualization.ts` — central knobs
-- `/home/mcwoodle/workspace/crime-data/vizualize-kepler-map/src/components/MapShell.tsx` — load + dispatch wiring
-- `/home/mcwoodle/workspace/crime-data/vizualize-kepler-map/src/components/RadiusControl.tsx` — custom slider
-- `/home/mcwoodle/workspace/crime-data/vizualize-kepler-map/src/layers/hexbinLayer.ts` — Layer 1 builder
-- `/home/mcwoodle/workspace/crime-data/vizualize-kepler-map/src/layers/geojsonLayer.ts` — Layers 2 & 3 builder
-- `/home/mcwoodle/workspace/crime-data/vizualize-kepler-map/src/data/standaloneLoader.ts` — embedded-data bootstrap with native gzip decompression (NEW)
-- `/home/mcwoodle/workspace/crime-data/vizualize-kepler-map/esbuild.config.mjs` — dev/prod dual-mode bundler (no code splitting in prod)
-- `/home/mcwoodle/workspace/crime-data/vizualize-kepler-map/scripts/build-standalone.mjs` — gzips compact data, embeds in HTML, inlines bundle, emits `dist/standalone.html`
+- `/home/mcwoodle/workspace/crime-data/visualize-kepler-map/src/config/visualization.ts` — central knobs
+- `/home/mcwoodle/workspace/crime-data/visualize-kepler-map/src/components/MapShell.tsx` — load + dispatch wiring
+- `/home/mcwoodle/workspace/crime-data/visualize-kepler-map/src/components/RadiusControl.tsx` — custom slider
+- `/home/mcwoodle/workspace/crime-data/visualize-kepler-map/src/layers/hexbinLayer.ts` — Layer 1 builder
+- `/home/mcwoodle/workspace/crime-data/visualize-kepler-map/src/layers/geojsonLayer.ts` — Layers 2 & 3 builder
+- `/home/mcwoodle/workspace/crime-data/visualize-kepler-map/src/data/standaloneLoader.ts` — embedded-data bootstrap with native gzip decompression (NEW)
+- `/home/mcwoodle/workspace/crime-data/visualize-kepler-map/esbuild.config.mjs` — dev/prod dual-mode bundler (no code splitting in prod)
+- `/home/mcwoodle/workspace/crime-data/visualize-kepler-map/scripts/build-standalone.mjs` — gzips compact data, embeds in HTML, inlines bundle, emits `dist/standalone.html`
 
 ## Existing Code to Reuse
 
@@ -500,7 +500,7 @@ The pipeline work lands first so the viz never has a reason to grow its own scri
 1. **Pipeline Step 5**: Add `transform/census/enrich_with_crime_rate.py`, call it from `pipeline.py`, run `uv run transform`, and confirm `gta_census_da.geojson` now has `crime_count` and `crime_rate_per_1k` per feature (spot-check a downtown Toronto DA in QGIS or a Python REPL).
 2. **Pipeline Step 6**: Add `transform/crime/build_shooting_arcs.py`, call it from `pipeline.py`, run `uv run transform`, and confirm `data/02_transformed/shooting_arcs.csv` exists with the expected schema and a sane row count.
 3. **Pipeline Step 7**: Add `transform/build_standalone_compact.py`, call it from `pipeline.py`, run `uv run transform`, and confirm `data/02_transformed/standalone/` contains the three compact files. Sanity-check sizes (compact CSV roughly 25 % of full CSV; simplified GeoJSON roughly 30 % of original).
-4. Scaffold `vizualize-kepler-map/` from kepler get-started, get a blank map at `localhost:8080`.
+4. Scaffold `visualize-kepler-map/` from kepler get-started, get a blank map at `localhost:8080`.
 5. Symlink `public/data` → `../../data/02_transformed`. Add `loaders.ts` + minimal `visualization.ts` with just Layer 1 + the `mapState`. Verify hexbin renders.
 6. Build `RadiusControl.tsx` + `useHexbinLayer.ts`. Verify slider mutates `worldUnitSize`.
 7. Add Layer 2 (income choropleth from `census_da`). Verify.
@@ -508,7 +508,7 @@ The pipeline work lands first so the viz never has a reason to grow its own scri
 9. Add Layer 4 (arcs from `shooting_arcs.csv`). Verify arcs render with year coloring.
 10. **Production build (multi-file)**: extend `esbuild.config.mjs` with a `--mode=prod` branch that emits a single non-split bundle to `dist/`, copies `public/index.html`, and copies the full data files into `dist/data/`. Run `yarn build`, then `cd dist && python -m http.server 8000` and verify the static site renders identically to the dev server. Confirm verification steps 10, 15, and 16 pass.
 11. **Standalone HTML build**: add `src/data/standaloneLoader.ts` and the `__STANDALONE_MODE__` branch in `loaders.ts`. Add the Carto basemap branch in `MapShell.tsx`. Add `scripts/build-standalone.mjs` that gzips the three files in `data/02_transformed/standalone/`, base64-encodes them, builds the `<script>window.__STANDALONE_DATA__ = {…}</script>` block, inlines the JS bundle, and writes `dist/standalone.html`. Wire up the `build:standalone` script. Run `yarn build:standalone`. **Open `dist/standalone.html` via `file://` directly (not through a server)** and confirm verification steps 11–14 all pass.
-12. Polish: `vizualize-kepler-map/README.md` documents that `uv run full-pipeline` is the only data prereq, the dev/prod/standalone build commands, the browser version requirements for `DecompressionStream`, and the Mapbox-token-at-build-time requirement (multi-file only). Add `.env.example` and ensure `.gitignore` covers `dist/`, `node_modules/`, `.env`, and `public/data`.
+12. Polish: `visualize-kepler-map/README.md` documents that `uv run full-pipeline` is the only data prereq, the dev/prod/standalone build commands, the browser version requirements for `DecompressionStream`, and the Mapbox-token-at-build-time requirement (multi-file only). Add `.env.example` and ensure `.gitignore` covers `dist/`, `node_modules/`, `.env`, and `public/data`.
 
 Each step leaves a runnable app — every commit is testable.
 
@@ -523,7 +523,7 @@ Each step leaves a runnable app — every commit is testable.
 
 ### Visualization package — complete
 
-- Scaffolded `vizualize-kepler-map/` with `package.json`, `tsconfig.json`, `.yarnrc.yml`, `.env.example`, `README.md`, `public/index.html`, `public/data` → `../../data/02_transformed` symlink.
+- Scaffolded `visualize-kepler-map/` with `package.json`, `tsconfig.json`, `.yarnrc.yml`, `.env.example`, `README.md`, `public/index.html`, `public/data` → `../../data/02_transformed` symlink.
 - `esbuild.config.mjs` — dual `--start` / `--build` modes, loads `.env`, production bundle is a single non-split IIFE, dev mode symlinks `dist/data` → `public/data`.
 - `src/config/visualization.ts` — central `VIZ_CONFIG` with 3 datasets and 4 layers (hexbin, income choropleth, crime-rate-per-1k choropleth sharing the same `census_da` dataset, arcs), `mapState` centered on the GTA, `mapStyle: 'dark'`.
 - `src/data/types.ts` — discriminated union of layer specs (`HexbinLayerSpec | GeoJsonLayerSpec | ArcLayerSpec`).
@@ -537,7 +537,7 @@ Each step leaves a runnable app — every commit is testable.
 - `src/app.tsx` — ReactDOM mount with `<Provider store={store}>`.
 - `scripts/build-standalone.mjs` — gzips (level 9) the three compact files, base64-encodes them, injects `window.__STANDALONE_MODE__` + `window.__STANDALONE_DATA__`, inlines the JS bundle (with `</script>` escaping), writes `dist/standalone.html`.
 
-### Build verification (from `vizualize-kepler-map/`)
+### Build verification (from `visualize-kepler-map/`)
 
 - `npm install --legacy-peer-deps` — 856 packages. `--legacy-peer-deps` required: transitive dep `enzyme-adapter-utils` (via `react-palm`) pins React < 17 while the viz uses React 18.
 - Extra polyfill deps added for Node builtins pulled in by `@kepler.gl/utils` and `thrift`: `assert`, `events`, `buffer`, `process`, `stream-browserify`, `util`.

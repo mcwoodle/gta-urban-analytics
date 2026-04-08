@@ -5,13 +5,13 @@ from pathlib import Path
 
 def build_map():
     """Build the Kepler map visualization project."""
-    # Find the vizualize-kepler-map directory
+    # Find the visualize-kepler-map directory
     current_dir = Path(__file__).resolve().parent
     project_root = current_dir.parent.parent.parent
-    kepler_dir = project_root / "vizualize-kepler-map"
+    kepler_dir = project_root / "visualize-kepler-map"
     
     if not kepler_dir.exists():
-        print(f"Error: Could not find vizualize-kepler-map directory at {kepler_dir}", file=sys.stderr)
+        print(f"Error: Could not find visualize-kepler-map directory at {kepler_dir}", file=sys.stderr)
         sys.exit(1)
         
     print(f"Building Kepler map project in {kepler_dir}...")

@@ -171,8 +171,8 @@ function openURL(url) {
         }
       });
 
-      console.info(`[esbuild] dev server running at http://localhost:${port}/vizualize-kepler-map/dist/`);
-      openURL(`http://localhost:${port}/vizualize-kepler-map/dist/`);
+      console.info(`[esbuild] dev server running at http://localhost:${port}/visualize-kepler-map/dist/`);
+      openURL(`http://localhost:${port}/visualize-kepler-map/dist/`);
     } catch (e) {
       console.error(e);
       process.exit(1);
