@@ -118,6 +118,27 @@ toronto_schema = DataFrameSchema({
     "y": Column(pa.Float, nullable=True, required=False, coerce=True),
 }, coerce=True)
 
+toronto_ytd_schema = DataFrameSchema({
+    "OBJECTID": Column(pa.Int, nullable=True, required=False, coerce=True),
+    "OCC_DATE_AGOL": Column(pa.String, nullable=True, required=False, coerce=True),
+    "REPORT_DATE_AGOL": Column(pa.String, nullable=True, required=False, coerce=True),
+    "EVENT_UNIQUE_ID": Column(pa.String, nullable=True, required=False, coerce=True),
+    "DIVISION": Column(pa.String, nullable=True, required=False, coerce=True),
+    "PREMISES_TYPE": Column(pa.String, nullable=True, required=False, coerce=True),
+    "HOUR": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "CRIME_TYPE": Column(pa.String, nullable=True, required=False, coerce=True),
+    "HOOD_158": Column(pa.String, nullable=True, required=False, coerce=True),
+    "NEIGHBOURHOOD_158": Column(pa.String, nullable=True, required=False, coerce=True),
+    "HOOD_140": Column(pa.String, nullable=True, required=False, coerce=True),
+    "NEIGHBOURHOOD_140": Column(pa.String, nullable=True, required=False, coerce=True),
+    "COUNT_": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "LONG_WGS84": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "LAT_WGS84": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "LOCATION_CATEGORY": Column(pa.String, nullable=True, required=False, coerce=True),
+    "lat": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "lon": Column(pa.Float, nullable=True, required=False, coerce=True),
+}, coerce=True)
+
 york_schema = DataFrameSchema({
     "UniqueIdentifier": Column(pa.String, nullable=True, required=False, coerce=True),
     "Occurrence Detail": Column(pa.String, nullable=True, required=False, coerce=True),
