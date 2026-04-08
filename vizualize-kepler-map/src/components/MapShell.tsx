@@ -16,12 +16,13 @@ import * as React from 'react';
 import { useDispatch } from 'react-redux';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 import KeplerGl from '@kepler.gl/components';
-import { addDataToMap, wrapTo, updateMap, mapStyleChange } from '@kepler.gl/actions';
+import { addDataToMap, wrapTo, updateMap, mapStyleChange, removeDataset } from '@kepler.gl/actions';
 
 import { VIZ_CONFIG } from '../config/visualization';
 import { loadAllDatasets, validateColorFields } from '../data/loaders';
 import { buildLayers } from '../layers';
 import { RadiusControl } from './RadiusControl';
+import { YearControl } from './YearControl';
 
 const MAP_ID = 'map';
 const forward = wrapTo(MAP_ID);
@@ -38,17 +39,29 @@ export function MapShell(): JSX.Element {
   const dispatch = useDispatch();
   const [loaded, setLoaded] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [year, setYear] = React.useState<number>(2025);
+
+  const initialMount = React.useRef(true);
 
   React.useEffect(() => {
     let cancelled = false;
+    const isInitial = initialMount.current;
 
-    // Set location immediately so we don't look at SF while data loads
-    dispatch(forward(updateMap(VIZ_CONFIG.mapState) as any));
-    dispatch(forward(mapStyleChange(VIZ_CONFIG.mapStyle) as any));
+    if (isInitial) {
+      // Set location immediately so we don't look at SF while data loads
+      dispatch(forward(updateMap(VIZ_CONFIG.mapState) as any));
+      dispatch(forward(mapStyleChange(VIZ_CONFIG.mapStyle) as any));
+      initialMount.current = false;
+    } else {
+      // Clear existing datasets from the map immediately upon year change
+      VIZ_CONFIG.datasets.forEach((d) => {
+        dispatch(forward(removeDataset(d.id) as any));
+      });
+    }
 
     (async () => {
       try {
-        const datasets = await loadAllDatasets();
+        const datasets = await loadAllDatasets(year);
         if (cancelled) return;
 
         validateColorFields(datasets);
@@ -59,7 +72,7 @@ export function MapShell(): JSX.Element {
           forward(
             addDataToMap({
               datasets,
-              options: { centerMap: false, readOnly: false },
+              options: { centerMap: false, readOnly: false, keepExistingConfig: true },
               config: {
                 version: 'v1',
                 config: {
@@ -85,7 +98,7 @@ export function MapShell(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [dispatch]);
+  }, [dispatch, year]);
 
   if (error) {
     return (
@@ -129,7 +142,12 @@ export function MapShell(): JSX.Element {
           />
         )}
       </AutoSizer>
-      {loaded ? <RadiusControl /> : null}
+      {loaded ? (
+        <>
+          <RadiusControl />
+          <YearControl year={year} setYear={setYear} />
+        </>
+      ) : null}
     </div>
   );
 }
