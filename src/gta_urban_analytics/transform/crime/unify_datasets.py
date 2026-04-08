@@ -72,7 +72,7 @@ def unify_datasets() -> pd.DataFrame:
 
         out = pd.DataFrame({
             'source_file_name': raw_file,
-            'source_identifier': df.get('event_unique_id', df.index.to_series().astype(str)),
+            'source_identifier': 'Durham_' + df.get('event_unique_id', df.index.to_series().astype(str)).astype(str),
             'region': 'Durham',
             # Use 'offence' column if available, fall back to the filename-derived category
             'original_crime_type': df.get('offence', pd.Series([file_category]*len(df))).fillna(file_category),
@@ -95,7 +95,7 @@ def unify_datasets() -> pd.DataFrame:
         raw_file = os.path.splitext(os.path.basename(halton))[0]
         out = pd.DataFrame({
             'source_file_name': raw_file,
-            'source_identifier': df.get('OBJECTID', df.index.to_series()).astype(str),
+            'source_identifier': 'Halton_' + df.get('OBJECTID', df.index.to_series()).astype(str),
             'region': 'Halton',
             'original_crime_type': df.get('DESCRIPTION'),
             'mapped_crime_category': df.get('DESCRIPTION', pd.Series(dtype=str)).apply(_map),
@@ -123,7 +123,7 @@ def unify_datasets() -> pd.DataFrame:
         raw_file = os.path.splitext(os.path.basename(peel))[0]
         out = pd.DataFrame({
             'source_file_name': raw_file,
-            'source_identifier': df.get('OBJECTID', df.index.to_series()).astype(str),
+            'source_identifier': 'Peel_' + df.get('OBJECTID', df.index.to_series()).astype(str),
             'region': 'Peel',
             'original_crime_type': df.get('Description'),
             'mapped_crime_category': df.get('Description', pd.Series(dtype=str)).apply(_map),
@@ -146,7 +146,7 @@ def unify_datasets() -> pd.DataFrame:
         raw_file = os.path.splitext(os.path.basename(toronto))[0]
         out = pd.DataFrame({
             'source_file_name': raw_file,
-            'source_identifier': df.get('EVENT_UNIQUE_ID', df.index.to_series().astype(str)),
+            'source_identifier': 'Toronto_' + df.get('EVENT_UNIQUE_ID', df.index.to_series().astype(str)).astype(str),
             'region': 'Toronto',
             'original_crime_type': df.get('OFFENCE'),
             'mapped_crime_category': df.get('OFFENCE', pd.Series(dtype=str)).apply(_map),
@@ -186,7 +186,7 @@ def unify_datasets() -> pd.DataFrame:
             
         out = pd.DataFrame({
             'source_file_name': raw_file,
-            'source_identifier': uid_col,
+            'source_identifier': 'York_' + uid_col,
             'region': 'York',
             'original_crime_type': crime_type,
             'mapped_crime_category': crime_type.apply(_map),
