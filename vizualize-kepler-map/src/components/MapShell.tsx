@@ -16,7 +16,7 @@ import * as React from 'react';
 import { useDispatch } from 'react-redux';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 import KeplerGl from '@kepler.gl/components';
-import { addDataToMap, wrapTo, updateMap } from '@kepler.gl/actions';
+import { addDataToMap, wrapTo, updateMap, mapStyleChange } from '@kepler.gl/actions';
 
 import { VIZ_CONFIG } from '../config/visualization';
 import { loadAllDatasets, validateColorFields } from '../data/loaders';
@@ -44,6 +44,7 @@ export function MapShell(): JSX.Element {
 
     // Set location immediately so we don't look at SF while data loads
     dispatch(forward(updateMap(VIZ_CONFIG.mapState) as any));
+    dispatch(forward(mapStyleChange(VIZ_CONFIG.mapStyle) as any));
 
     (async () => {
       try {

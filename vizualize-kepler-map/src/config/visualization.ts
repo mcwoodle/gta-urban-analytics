@@ -154,11 +154,12 @@ export const VIZ_CONFIG: VisualizationConfig = {
     longitude: -79.4,
     latitude: 43.85,
     zoom: 8.6,
-    pitch: 35,
-    bearing: 0
+    pitch: 45,
+    bearing: 0,
+    dragRotate: true
   },
 
-  mapStyle: 'dark'
+  mapStyle: 'voyager'
 };
 
 /**
@@ -168,4 +169,4 @@ export const VIZ_CONFIG: VisualizationConfig = {
  * Kepler's built-in 'dark' style ships a Carto dark-matter variant that
  * works from any origin — use it when running standalone.
  */
-export const STANDALONE_MAP_STYLE: VisualizationConfig['mapStyle'] = 'dark';
+export const STANDALONE_MAP_STYLE: VisualizationConfig['mapStyle'] = 'voyager';
