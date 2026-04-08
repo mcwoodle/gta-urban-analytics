@@ -6,8 +6,8 @@ import logging
 from importlib import resources
 from pyproj import Transformer
 from gta_urban_analytics.schemas import (
-    durham_schema, halton_schema, peel_schema, 
-    toronto_schema, york_schema, unified_schema
+    durham_schema, halton_schema, peel_schema,
+    toronto_schema, toronto_ytd_schema, york_schema, unified_schema
 )
 from gta_urban_analytics.extract.durham import DURHAM_DATASETS
 
@@ -134,22 +134,32 @@ def unify_datasets() -> pd.DataFrame:
         })
         all_dfs.append(out)
 
-    # Toronto
-    toronto = os.path.join(data_dir, 'Toronto_Major_Crime_Indicators.csv')
-    if os.path.exists(toronto):
-        logging.info(f"Processing Toronto: {toronto}")
-        df = pd.read_csv(toronto, low_memory=False)
-        toronto_schema.validate(df)
-        
-        dates = pd.to_datetime(df['OCC_DATE'], errors='coerce').dt.strftime('%Y-%m-%d')
-        
-        raw_file = os.path.splitext(os.path.basename(toronto))[0]
+    # Toronto (historical MCI dump + YTD feed share the same Toronto_*.csv glob)
+    for f in sorted(glob.glob(os.path.join(data_dir, 'Toronto_*.csv'))):
+        logging.info(f"Processing Toronto: {f}")
+        raw_file = os.path.splitext(os.path.basename(f))[0]
+        df = pd.read_csv(f, low_memory=False)
+
+        if 'OFFENCE' in df.columns:
+            # Historical Major Crime Indicators Open Data
+            toronto_schema.validate(df)
+            dates = pd.to_datetime(df['OCC_DATE'], errors='coerce').dt.strftime('%Y-%m-%d')
+            crime_type = df.get('OFFENCE')
+        elif 'CRIME_TYPE' in df.columns:
+            # TPS Crime App YTD feature service export
+            toronto_ytd_schema.validate(df)
+            dates = pd.to_datetime(df['OCC_DATE_AGOL'], errors='coerce').dt.strftime('%Y-%m-%d')
+            crime_type = df.get('CRIME_TYPE')
+        else:
+            logging.warning(f"Skipping unknown Toronto file shape: {f}")
+            continue
+
         out = pd.DataFrame({
             'source_file_name': raw_file,
             'source_identifier': 'Toronto_' + df.get('EVENT_UNIQUE_ID', df.index.to_series().astype(str)).astype(str),
             'region': 'Toronto',
-            'original_crime_type': df.get('OFFENCE'),
-            'mapped_crime_category': df.get('OFFENCE', pd.Series(dtype=str)).apply(_map),
+            'original_crime_type': crime_type,
+            'mapped_crime_category': crime_type.apply(_map),
             'occurrence_date': dates,
             'lat': df.get('LAT_WGS84'),
             'lon': df.get('LONG_WGS84'),
