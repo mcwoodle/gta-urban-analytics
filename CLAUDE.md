@@ -36,7 +36,7 @@ uv run pytest tests/test_foo.py::test_bar   # single test
 - Keep the subject line under 72 characters
 - Add 0-3 sentences to the commit message body to describe the changes.
 - Use imperative mood ("Add feature" not "Added feature")
-- ALWAYS use "Co-Authored-By" in commit messages (for Antigravity IDE use "[model] <antigravity@google.com>" - replacing [model] with the actual model name and version)
+- ALWAYS use "Co-Authored-By" in commit messages (for Antigravity IDE use "[model] <antigravity.git@gmail.com>" - replacing [model] with the actual model name and version)
 
 ## Architecture
 
