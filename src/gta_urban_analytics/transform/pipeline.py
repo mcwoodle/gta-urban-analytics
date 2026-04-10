@@ -4,13 +4,14 @@ Transform Pipeline
 Runs the full sequence of data transformations in memory:
 
   1. Unify                — merge all regional CSVs into a single DataFrame
-  2. Filter               — validate schema, separate invalid rows
-  3. Deduplicate          — merge multi-offence rows → unified_data.csv
-  4. Census               — build GTA census GeoJSON from StatCan data
-  5. Enrich census        — spatial-join crimes → DAs, add crime_count + crime_rate_per_1k
-  6. Shooting arcs        — build shooting_arcs.csv (Kepler arc layer input)
-  7. Standalone compact   — slim variants for the embedded single-file HTML build
-  8. Partition by year    — per-year subfolders (2020–present) with all outputs
+  2. Verify              — ensure every original crime type has an explicit mapping
+  3. Filter               — validate schema, separate invalid rows
+  4. Deduplicate          — merge multi-offence rows → unified_data.csv
+  5. Census               — build GTA census GeoJSON from StatCan data
+  6. Enrich census        — spatial-join crimes → DAs, add crime_count + crime_rate_per_1k
+  7. Shooting arcs        — build shooting_arcs.csv (Kepler arc layer input)
+  8. Standalone compact   — slim variants for the embedded single-file HTML build
+  9. Partition by year    — per-year subfolders (2020–present) with all outputs
 
 Outputs:
   - data/02_transformed/unified_data.csv
@@ -39,6 +40,7 @@ VERBOSE = True
 def run():
     """Execute the full transform pipeline in memory, writing a single output CSV."""
     from gta_urban_analytics.transform.crime.unify_datasets import unify_datasets
+    from gta_urban_analytics.transform.crime.verify_mappings import verify_mappings
     from gta_urban_analytics.transform.crime.filter_invalid_incidents import filter_invalid_incidents
     from gta_urban_analytics.transform.crime.deduplicate_incidents import deduplicate_incidents
     from gta_urban_analytics.transform.crime.build_shooting_arcs import build_shooting_arcs
@@ -49,7 +51,7 @@ def run():
 
     # Step 1: Unify
     logger.info("=" * 60)
-    logger.info("Step 1/8: Unifying regional datasets")
+    logger.info("Step 1/9: Unifying regional datasets")
     logger.info("=" * 60)
     df = unify_datasets()
 
@@ -57,17 +59,24 @@ def run():
         logger.error("No data to process. Aborting pipeline.")
         return
 
-    # Step 2: Filter invalid rows
+    # Step 2: Verify all crime types have explicit mappings
     logger.info("")
     logger.info("=" * 60)
-    logger.info("Step 2/8: Filtering invalid rows")
+    logger.info("Step 2/9: Verifying crime type mappings")
+    logger.info("=" * 60)
+    verify_mappings(df)
+
+    # Step 3: Filter invalid rows
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("Step 3/9: Filtering invalid rows")
     logger.info("=" * 60)
     df = filter_invalid_incidents(df, verbose=VERBOSE)
 
-    # Step 3: Deduplicate
+    # Step 4: Deduplicate
     logger.info("")
     logger.info("=" * 60)
-    logger.info("Step 3/8: Deduplicating incidents")
+    logger.info("Step 4/9: Deduplicating incidents")
     logger.info("=" * 60)
     df = deduplicate_incidents(df, verbose=VERBOSE)
 
@@ -82,38 +91,38 @@ def run():
     logger.info("=" * 60)
     df.to_csv(output_file, index=False)
 
-    # Step 4: Build census GeoJSON
+    # Step 5: Build census GeoJSON
     logger.info("")
     logger.info("=" * 60)
-    logger.info("Step 4/8: Building GTA census GeoJSON")
+    logger.info("Step 5/9: Building GTA census GeoJSON")
     logger.info("=" * 60)
     build_gta_census_geojson()
 
-    # Step 5: Enrich census with per-DA crime rate
+    # Step 6: Enrich census with per-DA crime rate
     logger.info("")
     logger.info("=" * 60)
-    logger.info("Step 5/8: Enriching census DAs with crime rate")
+    logger.info("Step 6/9: Enriching census DAs with crime rate")
     logger.info("=" * 60)
     enrich_census_with_crime_rate(verbose=VERBOSE)
 
-    # Step 6: Build shooting arcs
+    # Step 7: Build shooting arcs
     logger.info("")
     logger.info("=" * 60)
-    logger.info("Step 6/8: Building shooting arcs")
+    logger.info("Step 7/9: Building shooting arcs")
     logger.info("=" * 60)
     build_shooting_arcs(verbose=VERBOSE)
 
-    # Step 7: Produce compact variants for the standalone HTML build
+    # Step 8: Produce compact variants for the standalone HTML build
     logger.info("")
     logger.info("=" * 60)
-    logger.info("Step 7/8: Building standalone compact variants")
+    logger.info("Step 8/9: Building standalone compact variants")
     logger.info("=" * 60)
     build_standalone_compact(verbose=VERBOSE)
 
-    # Step 8: Partition by year
+    # Step 9: Partition by year
     logger.info("")
     logger.info("=" * 60)
-    logger.info("Step 8/8: Partitioning outputs by year (2020–present)")
+    logger.info("Step 9/9: Partitioning outputs by year (2020–present)")
     logger.info("=" * 60)
     partition_all_years(verbose=VERBOSE)
 
@@ -122,4 +131,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-
