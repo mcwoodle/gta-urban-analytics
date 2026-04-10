@@ -49,82 +49,83 @@ def run():
     from gta_urban_analytics.transform.build_standalone_compact import build_standalone_compact
     from gta_urban_analytics.transform.partition_by_year import partition_all_years
 
-    # Step 1: Unify
-    logger.info("=" * 60)
-    logger.info("Step 1/9: Unifying regional datasets")
-    logger.info("=" * 60)
-    df = unify_datasets()
+    def run_unify(df):
+        return unify_datasets()
 
-    if df.empty:
-        logger.error("No data to process. Aborting pipeline.")
-        return
+    def run_verify(df):
+        verify_mappings(df)
+        return df
 
-    # Step 2: Verify all crime types have explicit mappings
-    logger.info("")
-    logger.info("=" * 60)
-    logger.info("Step 2/9: Verifying crime type mappings")
-    logger.info("=" * 60)
-    verify_mappings(df)
+    def run_filter(df):
+        return filter_invalid_incidents(df, verbose=VERBOSE)
 
-    # Step 3: Filter invalid rows
-    logger.info("")
-    logger.info("=" * 60)
-    logger.info("Step 3/9: Filtering invalid rows")
-    logger.info("=" * 60)
-    df = filter_invalid_incidents(df, verbose=VERBOSE)
+    def run_dedup(df):
+        return deduplicate_incidents(df, verbose=VERBOSE)
 
-    # Step 4: Deduplicate
-    logger.info("")
-    logger.info("=" * 60)
-    logger.info("Step 4/9: Deduplicating incidents")
-    logger.info("=" * 60)
-    df = deduplicate_incidents(df, verbose=VERBOSE)
+    def run_write(df):
+        output_dir = os.path.join(_project_root, 'data', '02_transformed')
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, 'unified_data.csv')
 
-    # Write final output
-    output_dir = os.path.join(_project_root, 'data', '02_transformed')
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, 'unified_data.csv')
+        logger.info("")
+        logger.info("=" * 60)
+        logger.info(f"Writing {len(df):,} rows to {output_file}")
+        logger.info("=" * 60)
+        df.to_csv(output_file, index=False)
+        return df
 
-    logger.info("")
-    logger.info("=" * 60)
-    logger.info(f"Writing {len(df):,} rows to {output_file}")
-    logger.info("=" * 60)
-    df.to_csv(output_file, index=False)
+    def run_census(df):
+        build_gta_census_geojson()
+        return df
 
-    # Step 5: Build census GeoJSON
-    logger.info("")
-    logger.info("=" * 60)
-    logger.info("Step 5/9: Building GTA census GeoJSON")
-    logger.info("=" * 60)
-    build_gta_census_geojson()
+    def run_enrich(df):
+        enrich_census_with_crime_rate(verbose=VERBOSE)
+        return df
 
-    # Step 6: Enrich census with per-DA crime rate
-    logger.info("")
-    logger.info("=" * 60)
-    logger.info("Step 6/9: Enriching census DAs with crime rate")
-    logger.info("=" * 60)
-    enrich_census_with_crime_rate(verbose=VERBOSE)
+    def run_arcs(df):
+        build_shooting_arcs(verbose=VERBOSE)
+        return df
 
-    # Step 7: Build shooting arcs
-    logger.info("")
-    logger.info("=" * 60)
-    logger.info("Step 7/9: Building shooting arcs")
-    logger.info("=" * 60)
-    build_shooting_arcs(verbose=VERBOSE)
+    def run_compact(df):
+        build_standalone_compact(verbose=VERBOSE)
+        return df
 
-    # Step 8: Produce compact variants for the standalone HTML build
-    logger.info("")
-    logger.info("=" * 60)
-    logger.info("Step 8/9: Building standalone compact variants")
-    logger.info("=" * 60)
-    build_standalone_compact(verbose=VERBOSE)
+    def run_partition(df):
+        partition_all_years(verbose=VERBOSE)
+        return df
 
-    # Step 9: Partition by year
-    logger.info("")
-    logger.info("=" * 60)
-    logger.info("Step 9/9: Partitioning outputs by year (2020–present)")
-    logger.info("=" * 60)
-    partition_all_years(verbose=VERBOSE)
+    pipeline_steps = [
+        ("Unifying regional datasets", run_unify),
+        ("Verifying crime type mappings", run_verify),
+        ("Filtering invalid rows", run_filter),
+        ("Deduplicating incidents", run_dedup),
+        (None, run_write),
+        ("Building GTA census GeoJSON", run_census),
+        ("Enriching census DAs with crime rate", run_enrich),
+        ("Building shooting arcs", run_arcs),
+        ("Building standalone compact variants", run_compact),
+        ("Partitioning outputs by year (2020–present)", run_partition),
+    ]
+
+    df = None
+    numbered_steps = [s for s in pipeline_steps if s[0] is not None]
+    total_steps = len(numbered_steps)
+    current_step = 1
+
+    for desc, step_func in pipeline_steps:
+        if desc is not None:
+            if current_step > 1:
+                logger.info("")
+            logger.info("=" * 60)
+            logger.info(f"Step {current_step}/{total_steps}: {desc}")
+            logger.info("=" * 60)
+            current_step += 1
+
+        df = step_func(df)
+
+        if desc == "Unifying regional datasets" and (df is None or df.empty):
+            logger.error("No data to process. Aborting pipeline.")
+            return
 
     logger.info("Transform pipeline complete.")
 
