@@ -26,6 +26,11 @@ transform = "gta_urban_analytics.main:transform"
 analyze = "gta_urban_analytics.main:analyze"
 full-pipeline = "gta_urban_analytics.main:full_pipeline"
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
