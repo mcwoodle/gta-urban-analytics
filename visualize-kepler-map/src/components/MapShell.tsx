@@ -14,7 +14,7 @@
 
 import * as React from 'react';
 import { useDispatch } from 'react-redux';
-import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
+import AutoSizerRaw from 'react-virtualized/dist/commonjs/AutoSizer';
 import KeplerGl from '@kepler.gl/components';
 import { addDataToMap, wrapTo, updateMap, mapStyleChange, removeDataset } from '@kepler.gl/actions';
 
@@ -23,6 +23,13 @@ import { loadAllDatasets, validateColorFields } from '../data/loaders';
 import { buildLayers } from '../layers';
 import { RadiusControl } from './RadiusControl';
 import { YearControl } from './YearControl';
+
+// react-virtualized ships its own (pre-18) React types, so its AutoSizer class
+// fails @types/react@18's `ElementClass` check when used as JSX. Re-type it as
+// a function component with just the render-prop signature we use.
+const AutoSizer = AutoSizerRaw as unknown as React.ComponentType<{
+  children: (size: { height: number; width: number }) => React.ReactNode;
+}>;
 
 const MAP_ID = 'map';
 const forward = wrapTo(MAP_ID);
