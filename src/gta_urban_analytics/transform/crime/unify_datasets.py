@@ -29,8 +29,8 @@ def map_crime(crime_type, mapping):
     ct = str(crime_type).strip()
     return mapping.get(ct, "Other")
 
-# Setup pyproj transformer for York (EPSG:26917 to EPSG:4326)
-transformer = Transformer.from_crs("EPSG:26917", "EPSG:4326", always_xy=True)
+# Setup pyproj transformer for York (EPSG:3857 Web Mercator to EPSG:4326 WGS84)
+transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 
 def unify_datasets() -> pd.DataFrame:
     """Load and unify all regional raw CSVs into a single DataFrame.

@@ -47,7 +47,7 @@ Each police service has its own module (`toronto.py`, `york.py`, `peel.py`, `hal
 
 ### Transform (`src/gta_urban_analytics/transform/`)
 Three sequential stages in `pipeline.py`:
-1. **Unify** (`crime/unify_datasets.py`) — loads each region's raw CSV with its regional Pandera schema, standardizes columns, and merges into one DataFrame. York data arrives in UTM Zone 17N (EPSG:26917) and is reprojected to WGS84 (EPSG:4326) using `pyproj`.
+1. **Unify** (`crime/unify_datasets.py`) — loads each region's raw CSV with its regional Pandera schema, standardizes columns, and merges into one DataFrame. York data arrives in Web Mercator (EPSG:3857) and is reprojected to WGS84 (EPSG:4326) using `pyproj`.
 2. **Filter** (`crime/filter_invalid_incidents.py`) — validates rows against `unified_schema`; invalid rows are written to `invalid_data.csv` with a `validation_errors` column.
 3. **Deduplicate** (`crime/deduplicate_incidents.py`) — groups by `source_identifier`; incidents with multiple distinct crime types get them concatenated (`"Assault && Robbery"`) and `mapped_crime_category` set to `"MULTIPLE"`.
 
