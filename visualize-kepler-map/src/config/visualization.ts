@@ -7,7 +7,20 @@
 // the right layer builder in src/layers/index.ts.
 // ========================================================================
 
-import type { VisualizationConfig, ColorRangeSpec } from '../data/types';
+import type { VisualizationConfig, ColorRangeSpec, LayerSpec } from '../data/types';
+
+// --- Profile detection -------------------------------------------------------
+
+export type VizProfile = 'full' | 'lite';
+
+/** Read the build-time profile flag injected by build-standalone.mjs.
+ *  Defaults to 'full' when not set. */
+export function getProfile(): VizProfile {
+  if (typeof window !== 'undefined' && (window as any).__VIZ_PROFILE__ === 'lite') {
+    return 'lite';
+  }
+  return 'full';
+}
 
 // --- Reusable color ramps -------------------------------------------------
 
@@ -168,3 +181,48 @@ export const VIZ_CONFIG: VisualizationConfig = {
  * works from any origin — use it when running standalone.
  */
 export const STANDALONE_MAP_STYLE: VisualizationConfig['mapStyle'] = 'voyager';
+
+// --- Lite profile config -----------------------------------------------------
+// Replaces the GPU-aggregated hexagon layer with a simple point/scatterplot
+// layer, removes census + arc layers, and flattens the viewport to 2D.
+// This avoids the deck.gl GPU aggregation that fails on mobile GPUs.
+
+const LITE_CRIME_LAYER: LayerSpec = {
+  kind: 'point',
+  id: 'crime_points_lite',
+  label: 'Crime Points',
+  dataId: 'crime_points',
+  isVisible: true,
+  columns: { lat: 'lat', lng: 'lon' },
+  visConfig: {
+    radius: 4,
+    opacity: 0.7,
+    filled: true,
+    colorRange: GLOBAL_WARMING,
+    radiusRange: [1, 10],
+    fixedRadius: false
+  }
+};
+
+/**
+ * Return the visualization config adjusted for the active profile.
+ *
+ * - `full` (default): the original VIZ_CONFIG unchanged.
+ * - `lite`: flat 2D viewport, crime point layer only (no hexbin GPU
+ *   aggregation, no census choropleths, no arc layer).
+ */
+export function getVizConfig(): VisualizationConfig {
+  if (getProfile() === 'lite') {
+    return {
+      datasets: VIZ_CONFIG.datasets.filter((d) => d.id === 'crime_points'),
+      layers: [LITE_CRIME_LAYER],
+      mapState: {
+        ...VIZ_CONFIG.mapState,
+        pitch: 0,
+        dragRotate: false
+      },
+      mapStyle: VIZ_CONFIG.mapStyle
+    };
+  }
+  return VIZ_CONFIG;
+}

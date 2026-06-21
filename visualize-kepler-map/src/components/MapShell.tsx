@@ -18,7 +18,7 @@ import AutoSizerRaw from 'react-virtualized/dist/commonjs/AutoSizer';
 import KeplerGl from '@kepler.gl/components';
 import { addDataToMap, wrapTo, updateMap, mapStyleChange, removeDataset } from '@kepler.gl/actions';
 
-import { VIZ_CONFIG } from '../config/visualization';
+import { getVizConfig, getProfile } from '../config/visualization';
 import { loadAllDatasets, validateColorFields } from '../data/loaders';
 import { buildLayers } from '../layers';
 import { RadiusControl } from './RadiusControl';
@@ -53,15 +53,16 @@ export function MapShell(): JSX.Element {
   React.useEffect(() => {
     let cancelled = false;
     const isInitial = initialMount.current;
+    const vizConfig = getVizConfig();
 
     if (isInitial) {
       // Set location immediately so we don't look at SF while data loads
-      dispatch(forward(updateMap(VIZ_CONFIG.mapState) as any));
-      dispatch(forward(mapStyleChange(VIZ_CONFIG.mapStyle) as any));
+      dispatch(forward(updateMap(vizConfig.mapState) as any));
+      dispatch(forward(mapStyleChange(vizConfig.mapStyle) as any));
       initialMount.current = false;
     } else {
       // Clear existing datasets from the map immediately upon year change
-      VIZ_CONFIG.datasets.forEach((d) => {
+      vizConfig.datasets.forEach((d) => {
         dispatch(forward(removeDataset(d.id) as any));
       });
     }
@@ -84,9 +85,9 @@ export function MapShell(): JSX.Element {
                 version: 'v1',
                 config: {
                   visState: { layers },
-                  mapState: VIZ_CONFIG.mapState,
+                  mapState: vizConfig.mapState,
                   mapStyle: {
-                    styleType: VIZ_CONFIG.mapStyle
+                    styleType: vizConfig.mapStyle
                   }
                 }
               } as any
@@ -151,7 +152,7 @@ export function MapShell(): JSX.Element {
       </AutoSizer>
       {loaded ? (
         <>
-          <RadiusControl />
+          {getProfile() !== 'lite' && <RadiusControl />}
           <YearControl year={year} setYear={setYear} />
         </>
       ) : null}

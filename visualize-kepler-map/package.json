@@ -8,7 +8,8 @@
     "start": "node esbuild.config.mjs --start",
     "build": "node esbuild.config.mjs --build",
     "build:standalone": "node esbuild.config.mjs --build && node scripts/build-standalone.mjs",
-    "build:all": "yarn build:standalone"
+    "build:standalone:lite": "node esbuild.config.mjs --build && node scripts/build-standalone.mjs --profile=lite",
+    "build:all": "node esbuild.config.mjs --build && node scripts/build-standalone.mjs && node scripts/build-standalone.mjs --profile=lite"
   },
   "dependencies": {
     "@kepler.gl/actions": "^3.1.10",

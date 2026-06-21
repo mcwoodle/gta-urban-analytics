@@ -91,7 +91,20 @@ export interface ArcLayerSpec extends BaseLayerSpec {
   sizeField?: FieldSpec;
 }
 
-export type LayerSpec = HexbinLayerSpec | GeoJsonLayerSpec | ArcLayerSpec;
+export interface PointLayerSpec extends BaseLayerSpec {
+  kind: 'point';
+  columns: { lat: string; lng: string };
+  visConfig: {
+    radius: number;
+    opacity: number;
+    filled: boolean;
+    colorRange: ColorRangeSpec;
+    radiusRange: [number, number];
+    fixedRadius: boolean;
+  };
+}
+
+export type LayerSpec = HexbinLayerSpec | GeoJsonLayerSpec | ArcLayerSpec | PointLayerSpec;
 
 export interface VisualizationConfig {
   datasets: DatasetSpec[];

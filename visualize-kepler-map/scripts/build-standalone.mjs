@@ -15,6 +15,11 @@
 //
 // dist/index.html, dist/bundle.js, and dist/data/ are left untouched so
 // the multi-file static site is still available.
+//
+// --profile=lite  — emit dist/standalone-lite.html with:
+//   - window.__VIZ_PROFILE__ = 'lite'
+//   - crime CSV stride-sampled down to ~75k-100k rows
+//   - census geojson and shooting arcs omitted entirely
 // ========================================================================
 
 import fs from 'node:fs';
@@ -30,11 +35,32 @@ const repoRoot = path.resolve(vizRoot, '..');
 const distDir = path.join(vizRoot, 'dist');
 const standaloneDataDir = path.join(repoRoot, 'data', '02_transformed', 'standalone');
 
-const DATASETS = [
+// Parse --profile flag from argv (default: 'full')
+const profileArg = process.argv.find((a) => a.startsWith('--profile='));
+const profile = profileArg ? profileArg.split('=')[1] : 'full';
+
+if (profile !== 'full' && profile !== 'lite') {
+  console.error(`[build-standalone] unknown profile "${profile}" — expected "full" or "lite"`);
+  process.exit(1);
+}
+
+const isLite = profile === 'lite';
+
+const DATASETS_FULL = [
   { key: 'crime_points',  file: 'unified_data_compact.csv' },
   { key: 'census_da',     file: 'gta_census_da_compact.geojson' },
   { key: 'shooting_arcs', file: 'shooting_arcs.csv' }
 ];
+
+// Lite profile only includes the crime CSV (sampled)
+const DATASETS_LITE = [
+  { key: 'crime_points',  file: 'unified_data_compact.csv' }
+];
+
+const DATASETS = isLite ? DATASETS_LITE : DATASETS_FULL;
+
+// Target row count for lite crime CSV sampling
+const LITE_TARGET_ROWS = 80000;
 
 // -------------------------------------------------------------------------
 
@@ -52,6 +78,43 @@ function mb(bytes) {
  *  minified JS bundle occasionally does. */
 function escapeForScript(text) {
   return text.replace(/<\/script>/gi, '<\\/script>');
+}
+
+/**
+ * Deterministic stride-sample a CSV string to approximately targetRows data
+ * rows. Keeps the header row. Uses a fixed stride so results are reproducible.
+ */
+function sampleCsv(csvText, targetRows) {
+  const lines = csvText.split('\n');
+  // Find the header (first non-empty line)
+  let headerIdx = 0;
+  while (headerIdx < lines.length && lines[headerIdx].trim() === '') {
+    headerIdx++;
+  }
+  if (headerIdx >= lines.length) return csvText;
+
+  const header = lines[headerIdx];
+  const dataLines = lines.slice(headerIdx + 1).filter((l) => l.trim() !== '');
+  const totalRows = dataLines.length;
+
+  if (totalRows <= targetRows) {
+    console.info(
+      `[build-standalone] CSV has ${totalRows} rows, under target ${targetRows} — no sampling needed`
+    );
+    return csvText;
+  }
+
+  const stride = totalRows / targetRows;
+  const sampled = [header];
+  for (let i = 0; i < targetRows; i++) {
+    const idx = Math.floor(i * stride);
+    sampled.push(dataLines[idx]);
+  }
+
+  console.info(
+    `[build-standalone] sampled crime CSV: ${totalRows} → ${sampled.length - 1} rows (stride ${stride.toFixed(2)})`
+  );
+  return sampled.join('\n') + '\n';
 }
 
 // -------------------------------------------------------------------------
@@ -73,6 +136,8 @@ async function main() {
     );
   }
 
+  console.info(`[build-standalone] profile: ${profile}`);
+
   // Read + gzip + base64 each compact dataset.
   const embedded = {};
   let totalOrig = 0;
@@ -85,7 +150,15 @@ async function main() {
       console.warn(`[build-standalone] skipping missing ${ds.file}`);
       continue;
     }
-    const raw = fs.readFileSync(srcPath);
+    let raw = fs.readFileSync(srcPath);
+
+    // For lite profile, sample the crime CSV to reduce row count
+    if (isLite && ds.key === 'crime_points') {
+      const csvText = raw.toString('utf8');
+      const sampled = sampleCsv(csvText, LITE_TARGET_ROWS);
+      raw = Buffer.from(sampled, 'utf8');
+    }
+
     const gz = zlib.gzipSync(raw, { level: 9 });
     const b64 = gz.toString('base64');
     embedded[ds.key] = b64;
@@ -115,8 +188,13 @@ async function main() {
   const dataEntries = Object.entries(embedded)
     .map(([key, b64]) => `  ${JSON.stringify(key)}: ${JSON.stringify(b64)}`)
     .join(',\n');
+
+  // For lite profile, also inject the profile flag
+  const profileLine = isLite ? `window.__VIZ_PROFILE__ = 'lite';\n` : '';
+
   const dataScript =
     `window.__STANDALONE_MODE__ = true;\n` +
+    profileLine +
     `window.__STANDALONE_DATA__ = {\n${dataEntries}\n};`;
 
   // Read the canonical HTML shell from public/ (not dist/) so we can
@@ -142,7 +220,8 @@ async function main() {
     );
   }
 
-  const outPath = path.join(distDir, 'standalone.html');
+  const outFilename = isLite ? 'standalone-lite.html' : 'standalone.html';
+  const outPath = path.join(distDir, outFilename);
   fs.writeFileSync(outPath, html);
   const outSize = fs.statSync(outPath).size;
 

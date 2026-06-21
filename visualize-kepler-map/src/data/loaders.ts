@@ -13,7 +13,7 @@
 
 import { processCsvData, processGeojson } from '@kepler.gl/processors';
 
-import { VIZ_CONFIG } from '../config/visualization';
+import { getVizConfig } from '../config/visualization';
 import type { KeplerDataset } from './types';
 import { isStandalone, loadStandaloneDatasets } from './standaloneLoader';
 
@@ -38,8 +38,9 @@ export async function loadAllDatasets(year: number): Promise<KeplerDataset[]> {
     return loadStandaloneDatasets();
   }
 
+  const config = getVizConfig();
   return Promise.all(
-    VIZ_CONFIG.datasets.map(async (ds): Promise<KeplerDataset> => {
+    config.datasets.map(async (ds): Promise<KeplerDataset> => {
       const url = urlForYear(ds.url, year);
       const res = await fetch(url);
       if (!res.ok) {
@@ -64,7 +65,8 @@ export function validateColorFields(datasets: KeplerDataset[]): void {
     fieldsById.set(ds.info.id, new Set((ds.data?.fields ?? []).map((f) => f.name)));
   }
 
-  for (const layer of VIZ_CONFIG.layers) {
+  const config = getVizConfig();
+  for (const layer of config.layers) {
     const fields = fieldsById.get(layer.dataId);
     if (!fields) continue; // dataset not loaded (e.g. hidden) — nothing to check
 
