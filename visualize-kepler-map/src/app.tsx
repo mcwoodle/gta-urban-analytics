@@ -4,6 +4,11 @@ import { Provider } from 'react-redux';
 
 import { store } from './store';
 import { MapShell } from './components/MapShell';
+import { applyLiteLightingPatch } from './patches/disableLiteLighting';
+
+// Must run before any Kepler layers are constructed. The patch is guarded
+// internally — it no-ops when the active profile is not 'lite'.
+applyLiteLightingPatch();
 
 const Root = () => (
   <Provider store={store}>
