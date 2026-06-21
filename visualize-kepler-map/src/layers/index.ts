@@ -13,6 +13,7 @@ import { buildGeoJsonLayer } from './geojsonLayer';
 import { buildArcLayer } from './arcLayer';
 import { buildPointLayer } from './pointLayer';
 import { buildH3Layer } from './h3Layer';
+import { buildHeatmapLayer } from './heatmapLayer';
 
 export function buildLayers() {
   const config = getVizConfig();
@@ -37,6 +38,8 @@ function buildLayer(layer: LayerSpec) {
       return buildPointLayer(layer);
     case 'h3':
       return buildH3Layer(layer);
+    case 'heatmap':
+      return buildHeatmapLayer(layer);
     default: {
       // Exhaustiveness check — TS will flag a new `kind` that isn't handled.
       const _exhaustive: never = layer;

@@ -38,7 +38,7 @@ const ENTRIES_FULL: StandaloneEntry[] = [
 ];
 
 const ENTRIES_LITE: StandaloneEntry[] = [
-  { id: 'crime_h3_lite', label: 'Crime H3 Hexagons', format: 'csv' }
+  { id: 'crime_heatmap_lite', label: 'Crime Density Heatmap', format: 'csv' }
 ];
 
 function getEntries(): StandaloneEntry[] {

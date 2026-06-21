@@ -183,31 +183,26 @@ export const VIZ_CONFIG: VisualizationConfig = {
 export const STANDALONE_MAP_STYLE: VisualizationConfig['mapStyle'] = 'voyager';
 
 // --- Lite profile config -----------------------------------------------------
-// Replaces the GPU-aggregated hexagon layer with pre-aggregated H3 hexagon
-// columns (kepler's hexagonId / H3HexagonLayer). The build script bins the
-// full ~808k crime points into H3 res-8 cells at build time, producing a
-// compact { hex_id, count } dataset. The H3 layer extrudes one column per
-// cell keyed by the H3 index -- NO client-side GPU aggregation, mobile-safe.
+// Replaces the GPU-aggregated hexagon layer with a flat 2D heatmap (deck.gl
+// HeatmapLayer). The build script bins the full ~808k crime points into H3
+// res-8 cells at build time, computes each cell's centroid lat/lon, and emits
+// a compact { lat, lon, count } dataset (~4k rows). The heatmap layer uses
+// count as a weight field to approximate the true density distribution.
+// This avoids the 3D column-extrusion GLSL shader entirely — mobile-safe.
 
 const LITE_CRIME_LAYER: LayerSpec = {
-  kind: 'h3',
-  id: 'crime_h3_lite',
-  label: 'Crime Density (H3)',
-  dataId: 'crime_h3_lite',
+  kind: 'heatmap',
+  id: 'crime_heatmap_lite',
+  label: 'Crime Density Heatmap',
+  dataId: 'crime_heatmap_lite',
   isVisible: true,
-  columns: { hex_id: 'hex_id' },
+  columns: { lat: 'lat', lng: 'lon' },
   visConfig: {
-    opacity: 0.85,
-    coverage: 0.95,
-    enable3d: true,
-    elevationScale: 40,
-    sizeRange: [0, 500],
+    opacity: 0.8,
+    radius: 20,
     colorRange: GLOBAL_WARMING
   },
-  colorField: { name: 'count', type: 'integer' },
-  colorScale: 'quantile',
-  sizeField: { name: 'count', type: 'integer' },
-  sizeScale: 'linear'
+  weightField: { name: 'count', type: 'integer' }
 };
 
 /**
@@ -222,8 +217,8 @@ export function getVizConfig(): VisualizationConfig {
     return {
       datasets: [
         {
-          id: 'crime_h3_lite',
-          label: 'Crime H3 Hexagons',
+          id: 'crime_heatmap_lite',
+          label: 'Crime Density Heatmap',
           url: '', // embedded at build time, not fetched
           visible: true
         }
@@ -231,8 +226,8 @@ export function getVizConfig(): VisualizationConfig {
       layers: [LITE_CRIME_LAYER],
       mapState: {
         ...VIZ_CONFIG.mapState,
-        pitch: 42,
-        dragRotate: true
+        pitch: 0,
+        dragRotate: false
       },
       mapStyle: VIZ_CONFIG.mapStyle
     };

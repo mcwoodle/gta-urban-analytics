@@ -121,7 +121,18 @@ export interface H3LayerSpec extends BaseLayerSpec {
   sizeScale: string;
 }
 
-export type LayerSpec = HexbinLayerSpec | GeoJsonLayerSpec | ArcLayerSpec | PointLayerSpec | H3LayerSpec;
+export interface HeatmapLayerSpec extends BaseLayerSpec {
+  kind: 'heatmap';
+  columns: { lat: string; lng: string };
+  visConfig: {
+    opacity: number;
+    radius: number;
+    colorRange: ColorRangeSpec;
+  };
+  weightField: FieldSpec;
+}
+
+export type LayerSpec = HexbinLayerSpec | GeoJsonLayerSpec | ArcLayerSpec | PointLayerSpec | H3LayerSpec | HeatmapLayerSpec;
 
 export interface VisualizationConfig {
   datasets: DatasetSpec[];

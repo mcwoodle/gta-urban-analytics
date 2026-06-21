@@ -26,7 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { latLngToCell } from 'h3-js';
+import { latLngToCell, cellToLatLng } from 'h3-js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,10 +53,10 @@ const DATASETS_FULL = [
   { key: 'shooting_arcs', file: 'shooting_arcs.csv' }
 ];
 
-// Lite profile embeds the H3-aggregated crime data instead of sampled points.
-// The H3 binning is done at build time (below) using h3-js.
+// Lite profile embeds H3-aggregated crime data as centroid lat/lon + count,
+// feeding a 2D heatmap layer. The H3 binning is done at build time using h3-js.
 const DATASETS_LITE = [
-  { key: 'crime_h3_lite', file: '__h3_generated__' }
+  { key: 'crime_heatmap_lite', file: '__h3_generated__' }
 ];
 
 const DATASETS = isLite ? DATASETS_LITE : DATASETS_FULL;
@@ -124,7 +124,9 @@ function sampleCsv(csvText, targetRows) {
 
 /**
  * Aggregate crime CSV lat/lon rows into H3 cells and return a CSV string
- * with columns: hex_id, count. Uses the FULL dataset (no sampling) since
+ * with columns: lat, lon, count. Each row is the centroid of an H3 cell
+ * weighted by the number of crime incidents in that cell. This feeds
+ * the lite heatmap layer. Uses the FULL dataset (no sampling) since
  * aggregation collapses ~808k rows into ~4k cells.
  */
 function aggregateToH3(resolution) {
@@ -169,10 +171,11 @@ function aggregateToH3(resolution) {
     counts.set(cellId, (counts.get(cellId) || 0) + 1);
   }
 
-  // Build output CSV
-  const rows = ['hex_id,count'];
+  // Build output CSV with centroid lat/lon instead of hex_id
+  const rows = ['lat,lon,count'];
   for (const [hexId, count] of counts) {
-    rows.push(`${hexId},${count}`);
+    const [cLat, cLng] = cellToLatLng(hexId);
+    rows.push(`${cLat.toFixed(6)},${cLng.toFixed(6)},${count}`);
   }
 
   console.info(
