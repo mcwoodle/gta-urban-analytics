@@ -16,7 +16,14 @@ import * as React from 'react';
 import { useDispatch } from 'react-redux';
 import AutoSizerRaw from 'react-virtualized/dist/commonjs/AutoSizer';
 import KeplerGl from '@kepler.gl/components';
-import { addDataToMap, wrapTo, updateMap, mapStyleChange, removeDataset } from '@kepler.gl/actions';
+import {
+  addDataToMap,
+  wrapTo,
+  updateMap,
+  mapStyleChange,
+  removeDataset,
+  toggleSidePanel
+} from '@kepler.gl/actions';
 
 import { getVizConfig, getProfile } from '../config/visualization';
 import { loadAllDatasets, validateColorFields } from '../data/loaders';
@@ -96,6 +103,18 @@ export function MapShell(): JSX.Element {
         );
 
         setLoaded(true);
+
+        // Collapse the left side panel by default — but only AFTER the first
+        // load has rendered. Baking `activeSidePanel: null` into the initial
+        // store state changes the very-first map layout and leaves the
+        // deck.gl HeatmapLayer (mobile profile) stuck un-aggregated/blank.
+        // Letting the map paint with the panel open, then collapsing, lets the
+        // heatmap aggregate first; the collapse-driven resize keeps it painted.
+        if (isInitial) {
+          setTimeout(() => {
+            if (!cancelled) dispatch(forward(toggleSidePanel(null as any) as any));
+          }, 700);
+        }
       } catch (e: any) {
         // eslint-disable-next-line no-console
         console.error('[viz] failed to load datasets:', e);

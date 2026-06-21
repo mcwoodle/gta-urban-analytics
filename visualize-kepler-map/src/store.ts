@@ -10,7 +10,6 @@ import keplerGlReducer, { enhanceReduxMiddleware } from '@kepler.gl/reducers';
 const customizedKeplerReducer = keplerGlReducer.initialState({
   uiState: {
     readOnly: false,
-    activeSidePanel: null,
     currentModal: null
   }
 });
