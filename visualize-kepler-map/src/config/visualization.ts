@@ -183,25 +183,31 @@ export const VIZ_CONFIG: VisualizationConfig = {
 export const STANDALONE_MAP_STYLE: VisualizationConfig['mapStyle'] = 'voyager';
 
 // --- Lite profile config -----------------------------------------------------
-// Replaces the GPU-aggregated hexagon layer with a simple point/scatterplot
-// layer, removes census + arc layers, and flattens the viewport to 2D.
-// This avoids the deck.gl GPU aggregation that fails on mobile GPUs.
+// Replaces the GPU-aggregated hexagon layer with pre-aggregated H3 hexagon
+// columns (kepler's hexagonId / H3HexagonLayer). The build script bins the
+// full ~808k crime points into H3 res-8 cells at build time, producing a
+// compact { hex_id, count } dataset. The H3 layer extrudes one column per
+// cell keyed by the H3 index -- NO client-side GPU aggregation, mobile-safe.
 
 const LITE_CRIME_LAYER: LayerSpec = {
-  kind: 'point',
-  id: 'crime_points_lite',
-  label: 'Crime Points',
-  dataId: 'crime_points',
+  kind: 'h3',
+  id: 'crime_h3_lite',
+  label: 'Crime Density (H3)',
+  dataId: 'crime_h3_lite',
   isVisible: true,
-  columns: { lat: 'lat', lng: 'lon' },
+  columns: { hex_id: 'hex_id' },
   visConfig: {
-    radius: 4,
-    opacity: 0.7,
-    filled: true,
-    colorRange: GLOBAL_WARMING,
-    radiusRange: [1, 10],
-    fixedRadius: false
-  }
+    opacity: 0.85,
+    coverage: 0.95,
+    enable3d: true,
+    elevationScale: 40,
+    sizeRange: [0, 500],
+    colorRange: GLOBAL_WARMING
+  },
+  colorField: { name: 'count', type: 'integer' },
+  colorScale: 'quantile',
+  sizeField: { name: 'count', type: 'integer' },
+  sizeScale: 'linear'
 };
 
 /**
@@ -214,12 +220,19 @@ const LITE_CRIME_LAYER: LayerSpec = {
 export function getVizConfig(): VisualizationConfig {
   if (getProfile() === 'lite') {
     return {
-      datasets: VIZ_CONFIG.datasets.filter((d) => d.id === 'crime_points'),
+      datasets: [
+        {
+          id: 'crime_h3_lite',
+          label: 'Crime H3 Hexagons',
+          url: '', // embedded at build time, not fetched
+          visible: true
+        }
+      ],
       layers: [LITE_CRIME_LAYER],
       mapState: {
         ...VIZ_CONFIG.mapState,
-        pitch: 0,
-        dragRotate: false
+        pitch: 42,
+        dragRotate: true
       },
       mapStyle: VIZ_CONFIG.mapStyle
     };

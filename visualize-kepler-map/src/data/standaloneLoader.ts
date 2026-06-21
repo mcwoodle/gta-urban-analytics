@@ -28,11 +28,24 @@ interface StandaloneEntry {
 // Embedded payload keys (set by scripts/build-standalone.mjs) → the
 // dataset id/label/format the rest of the app expects. Ids must match
 // VIZ_CONFIG.datasets so layers bind to the right data.
-const ENTRIES: StandaloneEntry[] = [
+//
+// Full profile embeds: crime_points, census_da, shooting_arcs
+// Lite profile embeds: crime_h3_lite (pre-aggregated H3 cells)
+const ENTRIES_FULL: StandaloneEntry[] = [
   { id: 'crime_points', label: 'Unified GTA Crime', format: 'csv' },
   { id: 'census_da', label: 'Census Dissemination Areas', format: 'geojson' },
   { id: 'shooting_arcs', label: 'Shooting → Centroid Arcs', format: 'csv' }
 ];
+
+const ENTRIES_LITE: StandaloneEntry[] = [
+  { id: 'crime_h3_lite', label: 'Crime H3 Hexagons', format: 'csv' }
+];
+
+function getEntries(): StandaloneEntry[] {
+  const isLite =
+    typeof window !== 'undefined' && (window as any).__VIZ_PROFILE__ === 'lite';
+  return isLite ? ENTRIES_LITE : ENTRIES_FULL;
+}
 
 export function isStandalone(): boolean {
   return typeof window !== 'undefined' && Boolean((window as any).__STANDALONE_MODE__);
@@ -76,7 +89,7 @@ export async function loadStandaloneDatasets(): Promise<KeplerDataset[]> {
   const data = embeddedData();
   const datasets: KeplerDataset[] = [];
 
-  for (const entry of ENTRIES) {
+  for (const entry of getEntries()) {
     const b64 = data[entry.id];
     if (!b64) {
       // eslint-disable-next-line no-console

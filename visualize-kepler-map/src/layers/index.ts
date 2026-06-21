@@ -12,6 +12,7 @@ import { buildHexbinLayer } from './hexbinLayer';
 import { buildGeoJsonLayer } from './geojsonLayer';
 import { buildArcLayer } from './arcLayer';
 import { buildPointLayer } from './pointLayer';
+import { buildH3Layer } from './h3Layer';
 
 export function buildLayers() {
   const config = getVizConfig();
@@ -34,6 +35,8 @@ function buildLayer(layer: LayerSpec) {
       return buildArcLayer(layer);
     case 'point':
       return buildPointLayer(layer);
+    case 'h3':
+      return buildH3Layer(layer);
     default: {
       // Exhaustiveness check — TS will flag a new `kind` that isn't handled.
       const _exhaustive: never = layer;

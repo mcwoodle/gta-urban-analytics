@@ -104,7 +104,24 @@ export interface PointLayerSpec extends BaseLayerSpec {
   };
 }
 
-export type LayerSpec = HexbinLayerSpec | GeoJsonLayerSpec | ArcLayerSpec | PointLayerSpec;
+export interface H3LayerSpec extends BaseLayerSpec {
+  kind: 'h3';
+  columns: { hex_id: string };
+  visConfig: {
+    opacity: number;
+    coverage: number;
+    enable3d: boolean;
+    elevationScale: number;
+    sizeRange: [number, number];
+    colorRange: ColorRangeSpec;
+  };
+  colorField: FieldSpec;
+  colorScale: string;
+  sizeField: FieldSpec;
+  sizeScale: string;
+}
+
+export type LayerSpec = HexbinLayerSpec | GeoJsonLayerSpec | ArcLayerSpec | PointLayerSpec | H3LayerSpec;
 
 export interface VisualizationConfig {
   datasets: DatasetSpec[];

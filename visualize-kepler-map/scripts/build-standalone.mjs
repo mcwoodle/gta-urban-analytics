@@ -26,6 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
+import { latLngToCell } from 'h3-js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,15 +53,19 @@ const DATASETS_FULL = [
   { key: 'shooting_arcs', file: 'shooting_arcs.csv' }
 ];
 
-// Lite profile only includes the crime CSV (sampled)
+// Lite profile embeds the H3-aggregated crime data instead of sampled points.
+// The H3 binning is done at build time (below) using h3-js.
 const DATASETS_LITE = [
-  { key: 'crime_points',  file: 'unified_data_compact.csv' }
+  { key: 'crime_h3_lite', file: '__h3_generated__' }
 ];
 
 const DATASETS = isLite ? DATASETS_LITE : DATASETS_FULL;
 
-// Target row count for lite crime CSV sampling
+// Target row count for lite crime CSV sampling (unused in H3 mode, kept for reference)
 const LITE_TARGET_ROWS = 80000;
+
+// H3 resolution for lite build. Res 8 (~0.46 km edge) yields ~4k cells over GTA.
+const H3_RESOLUTION = 8;
 
 // -------------------------------------------------------------------------
 
@@ -117,6 +122,68 @@ function sampleCsv(csvText, targetRows) {
   return sampled.join('\n') + '\n';
 }
 
+/**
+ * Aggregate crime CSV lat/lon rows into H3 cells and return a CSV string
+ * with columns: hex_id, count. Uses the FULL dataset (no sampling) since
+ * aggregation collapses ~808k rows into ~4k cells.
+ */
+function aggregateToH3(resolution) {
+  const srcPath = path.join(standaloneDataDir, 'unified_data_compact.csv');
+  if (!fs.existsSync(srcPath)) {
+    fail(`H3 aggregation requires ${srcPath} — run the transform pipeline first.`);
+  }
+
+  const csvText = fs.readFileSync(srcPath, 'utf8');
+  const lines = csvText.split('\n');
+
+  // Find header
+  let headerIdx = 0;
+  while (headerIdx < lines.length && lines[headerIdx].trim() === '') {
+    headerIdx++;
+  }
+  if (headerIdx >= lines.length) {
+    fail('Crime CSV is empty — cannot aggregate.');
+  }
+
+  const header = lines[headerIdx].split(',');
+  const latIdx = header.indexOf('lat');
+  const lonIdx = header.indexOf('lon');
+  if (latIdx < 0 || lonIdx < 0) {
+    fail(`Crime CSV missing lat/lon columns. Header: ${header.join(', ')}`);
+  }
+
+  // Bin every row into an H3 cell
+  const counts = new Map();
+  let skipped = 0;
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const parts = line.split(',');
+    const lat = parseFloat(parts[latIdx]);
+    const lon = parseFloat(parts[lonIdx]);
+    if (isNaN(lat) || isNaN(lon)) {
+      skipped++;
+      continue;
+    }
+    const cellId = latLngToCell(lat, lon, resolution);
+    counts.set(cellId, (counts.get(cellId) || 0) + 1);
+  }
+
+  // Build output CSV
+  const rows = ['hex_id,count'];
+  for (const [hexId, count] of counts) {
+    rows.push(`${hexId},${count}`);
+  }
+
+  console.info(
+    `[build-standalone] H3 aggregation: res=${resolution}, ` +
+      `${lines.length - headerIdx - 1} input rows → ${counts.size} cells ` +
+      `(${skipped} skipped due to invalid coords)`
+  );
+
+  return rows.join('\n') + '\n';
+}
+
 // -------------------------------------------------------------------------
 
 async function main() {
@@ -145,18 +212,25 @@ async function main() {
   let totalB64 = 0;
 
   for (const ds of DATASETS) {
-    const srcPath = path.join(standaloneDataDir, ds.file);
-    if (!fs.existsSync(srcPath)) {
-      console.warn(`[build-standalone] skipping missing ${ds.file}`);
-      continue;
-    }
-    let raw = fs.readFileSync(srcPath);
+    let raw;
+    let displayName;
 
-    // For lite profile, sample the crime CSV to reduce row count
-    if (isLite && ds.key === 'crime_points') {
-      const csvText = raw.toString('utf8');
-      const sampled = sampleCsv(csvText, LITE_TARGET_ROWS);
-      raw = Buffer.from(sampled, 'utf8');
+    if (ds.file === '__h3_generated__') {
+      // H3-aggregated data generated at build time
+      const h3Csv = aggregateToH3(H3_RESOLUTION);
+      raw = Buffer.from(h3Csv, 'utf8');
+      displayName = `crime_h3_res${H3_RESOLUTION} (generated)`;
+    } else {
+      const srcPath = path.join(standaloneDataDir, ds.file);
+      if (!fs.existsSync(srcPath)) {
+        console.warn(`[build-standalone] skipping missing ${ds.file}`);
+        continue;
+      }
+      raw = fs.readFileSync(srcPath);
+      displayName = ds.file;
+
+      // For full profile, no sampling needed (full dataset)
+      // sampleCsv is kept available but unused in H3 mode
     }
 
     const gz = zlib.gzipSync(raw, { level: 9 });
@@ -168,7 +242,7 @@ async function main() {
     totalB64 += b64.length;
 
     console.info(
-      `[build-standalone] ${ds.file.padEnd(36)}  ` +
+      `[build-standalone] ${displayName.padEnd(36)}  ` +
         `orig=${mb(raw.length).padStart(6)} MB  ` +
         `gz=${mb(gz.length).padStart(6)} MB  ` +
         `b64=${mb(b64.length).padStart(6)} MB`

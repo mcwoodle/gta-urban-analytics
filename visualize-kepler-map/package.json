@@ -36,6 +36,7 @@
     "@types/react-redux": "^7.1.25",
     "esbuild": "^0.25.0",
     "esbuild-plugin-copy": "^2.1.1",
+    "h3-js": "^4.2.1",
     "typescript": "^4.9.5"
   }
 }
