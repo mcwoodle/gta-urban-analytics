@@ -96,7 +96,7 @@ def build_shooting_arcs(
     original = df["original_crime_type"].fillna("").astype(str)
     mapped = df["mapped_crime_category"].fillna("").astype(str)
     shooting_mask = original.str.contains(_SHOOTING_REGEX, regex=True, na=False) | (
-        mapped == "Weapons"
+        mapped == "Weapons Offences"
     )
     shootings = df[shooting_mask].copy()
 

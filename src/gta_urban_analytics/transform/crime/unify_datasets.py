@@ -32,6 +32,47 @@ def map_crime(crime_type, mapping):
 # Setup pyproj transformer for York (EPSG:3857 Web Mercator to EPSG:4326 WGS84)
 transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 
+# Canonical fallback for Durham's file-level categories. Durham crimes are mapped
+# through the JSON taxonomy via their offence text (like every other region); this
+# map is used only when an offence is missing/unmapped so the result is still one
+# of the canonical categories (audit F-01).
+_DURHAM_CANONICAL_CATEGORY = {
+    "Drug Violations": "Drug Offences",
+    "Robbery": "Robbery",
+    "Break and Enter": "Break & Enter",
+    "Theft Over 5000": "Theft",
+    "Assaults": "Assault",
+    "Auto Theft": "Auto Theft",
+    "Shootings and Firearm Discharge": "Weapons Offences",
+}
+
+# GTA coordinate sanity box. Anything outside this — including the (0,0) "null
+# island" Toronto uses for redacted locations — is treated as a missing coordinate
+# so the downstream filter quarantines the row to invalid_data.csv (audit F-03).
+_GTA_LAT_MIN, _GTA_LAT_MAX = 43.0, 44.6
+_GTA_LON_MIN, _GTA_LON_MAX = -80.6, -78.2
+
+
+def _null_out_of_bounds_coords(df: pd.DataFrame) -> pd.DataFrame:
+    """Set lat/lon to NaN for rows outside the GTA box (incl. (0,0))."""
+    lat = pd.to_numeric(df["lat"], errors="coerce")
+    lon = pd.to_numeric(df["lon"], errors="coerce")
+    in_box = (
+        lat.between(_GTA_LAT_MIN, _GTA_LAT_MAX)
+        & lon.between(_GTA_LON_MIN, _GTA_LON_MAX)
+    )
+    n_bad = int((~in_box).sum())
+    if n_bad:
+        logging.info(
+            f"Nulling {n_bad:,} out-of-bounds/zero coordinates "
+            f"(e.g. Toronto (0,0) redactions) so they are quarantined as invalid."
+        )
+    df = df.copy()
+    df["lat"] = lat.where(in_box)
+    df["lon"] = lon.where(in_box)
+    return df
+
+
 def unify_datasets() -> pd.DataFrame:
     """Load and unify all regional raw CSVs into a single DataFrame.
     
@@ -70,13 +111,21 @@ def unify_datasets() -> pd.DataFrame:
         else:
             dates = pd.NaT
 
+        # Original crime type: prefer the per-incident offence text, else the
+        # file-level category. Map through the canonical JSON taxonomy like every
+        # other region (audit F-01) instead of using the filename-derived label;
+        # fall back to a canonicalised file category only when unmapped.
+        original = df.get('offence', pd.Series([file_category] * len(df))).fillna(file_category)
+        mapped = original.apply(_map)
+        fallback = _DURHAM_CANONICAL_CATEGORY.get(file_category, file_category)
+        mapped = mapped.mask(mapped == "Other", fallback)
+
         out = pd.DataFrame({
             'source_file_name': raw_file,
             'source_identifier': 'Durham_' + df.get('event_unique_id', df.index.to_series().astype(str)).astype(str),
             'region': 'Durham',
-            # Use 'offence' column if available, fall back to the filename-derived category
-            'original_crime_type': df.get('offence', pd.Series([file_category]*len(df))).fillna(file_category),
-            'mapped_crime_category': file_category,
+            'original_crime_type': original,
+            'mapped_crime_category': mapped,
             'occurrence_date': dates,
             'lat': df.get('lat'),
             'lon': df.get('lon'),
@@ -211,6 +260,7 @@ def unify_datasets() -> pd.DataFrame:
     logging.info("Concatenating all regions...")
     if all_dfs:
         unified_df = pd.concat(all_dfs, ignore_index=True)
+        unified_df = _null_out_of_bounds_coords(unified_df)
         logging.info(f"Unified {len(unified_df):,} rows × {len(unified_df.columns)} columns")
         return unified_df
     else:
