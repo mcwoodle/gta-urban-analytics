@@ -2,6 +2,7 @@ import pandas as pd
 import glob
 import os
 import json
+import re
 import logging
 from importlib import resources
 from pyproj import Transformer
@@ -73,6 +74,61 @@ def _null_out_of_bounds_coords(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# Municipality name normalisation (audit F-08). Regions publish municipalities in
+# different forms — Durham as 3-letter UPPER codes, Halton/Peel as UPPER (Peel
+# drops internal spaces), York/Toronto as Title case. Aliases resolve the codes and
+# no-space spellings; everything else is title-cased so the same city is one label.
+_MUNICIPALITY_ALIASES = {
+    # Durham Region 3-letter codes (its eight municipalities)
+    "AJA": "Ajax", "BRO": "Brock", "CLA": "Clarington", "OSH": "Oshawa",
+    "PIC": "Pickering", "SCU": "Scugog", "UXB": "Uxbridge", "WHI": "Whitby",
+    # Durham cross-boundary codes (incidents recorded outside Durham)
+    "TOR": "Toronto", "MAR": "Markham", "MIS": "Mississauga", "VAU": "Vaughan",
+    "BRA": "Brampton", "GEO": "Georgina", "RHL": "Richmond Hill", "MIL": "Milton",
+    "CKL": "Kawartha Lakes", "OUT": "Outside Region",
+    # Peel's no-internal-space spellings
+    "HALTONHILLS": "Halton Hills", "RICHMONDHILL": "Richmond Hill",
+}
+
+
+def _normalize_municipality(value):
+    """Resolve a raw municipality value to a canonical Title-case name (F-08)."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return value
+    s = str(value).strip()
+    if not s:
+        return s
+    return _MUNICIPALITY_ALIASES.get(s.upper(), s.title())
+
+
+# Date-stamped snapshot files (``*_to_YYYY-MM-DD.csv``) accumulate in 01_raw as the
+# York/Toronto feeds are re-downloaded; the glob would load every stale copy and
+# double-count. Keep only the newest snapshot per logical source (audit F-05/F-06).
+_SNAPSHOT_RE = re.compile(r"^(.*_to_)(\d{4}-\d{2}-\d{2})\.csv$")
+
+
+def _drop_stale_snapshots(files):
+    """Keep only the newest ``*_to_<date>.csv`` per prefix; pass others through."""
+    latest = {}
+    passthrough = []
+    for f in files:
+        m = _SNAPSHOT_RE.match(os.path.basename(f))
+        if not m:
+            passthrough.append(f)
+            continue
+        prefix, date = m.group(1), m.group(2)
+        if prefix not in latest or date > latest[prefix][0]:
+            latest[prefix] = (date, f)
+    kept = passthrough + [path for _, path in latest.values()]
+    dropped = len(files) - len(kept)
+    if dropped > 0:
+        logging.warning(
+            f"Ignoring {dropped} stale dated snapshot file(s) in 01_raw; "
+            f"keeping the newest per source."
+        )
+    return kept
+
+
 def unify_datasets() -> pd.DataFrame:
     """Load and unify all regional raw CSVs into a single DataFrame.
     
@@ -104,7 +160,8 @@ def unify_datasets() -> pd.DataFrame:
         if 'occurrence_year' in df.columns:
             month_map = {'Jan':'01','Feb':'02','Mar':'03','Apr':'04','May':'05','Jun':'06',
                          'Jul':'07','Aug':'08','Sep':'09','Oct':'10','Nov':'11','Dec':'12'}
-            m = df['occurrence_month'].map(month_map).fillna('01')
+            # An unrecognised/missing month yields NaT rather than a fabricated January (F-15).
+            m = df['occurrence_month'].map(month_map)
             y = df['occurrence_year'].fillna(0).astype(int).astype(str)
             d = df['occurrence_day'].fillna(1).astype(int).astype(str).str.zfill(2)
             dates = pd.to_datetime(y + '-' + m + '-' + d, errors='coerce').dt.strftime('%Y-%m-%d')
@@ -184,7 +241,7 @@ def unify_datasets() -> pd.DataFrame:
         all_dfs.append(out)
 
     # Toronto (historical MCI dump + YTD feed share the same Toronto_*.csv glob)
-    for f in sorted(glob.glob(os.path.join(data_dir, 'Toronto_*.csv'))):
+    for f in sorted(_drop_stale_snapshots(glob.glob(os.path.join(data_dir, 'Toronto_*.csv')))):
         logging.info(f"Processing Toronto: {f}")
         raw_file = os.path.splitext(os.path.basename(f))[0]
         df = pd.read_csv(f, low_memory=False)
@@ -218,7 +275,7 @@ def unify_datasets() -> pd.DataFrame:
         all_dfs.append(out)
 
     # York
-    for f in glob.glob(os.path.join(data_dir, 'York_*.csv')):
+    for f in _drop_stale_snapshots(glob.glob(os.path.join(data_dir, 'York_*.csv'))):
         logging.info(f"Processing York: {f}")
         raw_file = os.path.splitext(os.path.basename(f))[0]
         df = pd.read_csv(f, low_memory=False)
@@ -261,6 +318,8 @@ def unify_datasets() -> pd.DataFrame:
     if all_dfs:
         unified_df = pd.concat(all_dfs, ignore_index=True)
         unified_df = _null_out_of_bounds_coords(unified_df)
+        unified_df["municipality"] = unified_df["municipality"].map(_normalize_municipality)
+        unified_df["original_crime_type"] = unified_df["original_crime_type"].str.strip()
         logging.info(f"Unified {len(unified_df):,} rows × {len(unified_df.columns)} columns")
         return unified_df
     else:

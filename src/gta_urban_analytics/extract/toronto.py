@@ -11,7 +11,9 @@ def download_toronto_data():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Historical data (2014 - end of previous year), ~160 MB, skip if already present
+    # Historical Major Crime Indicators (~160 MB). Note: the open-data dump currently
+    # extends into the current year and overlaps the YTD feed; dedup by EVENT_UNIQUE_ID
+    # handles the overlap (audit F-06). Skip the download if already present.
     hist_filename = "Toronto_Major_Crime_Indicators.csv"
     hist_path = os.path.join(output_dir, hist_filename)
     if not os.path.exists(hist_path):

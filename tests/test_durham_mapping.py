@@ -125,3 +125,34 @@ def test_unify_durham_unmapped_offence_falls_back_to_canonical(mock_read_csv, mo
     durham = df[df["region"] == "Durham"].reset_index(drop=True)
     assert list(durham["mapped_crime_category"]) == ["Assault"]  # fallback for the "Assaults" file
     assert "Other" not in set(df["mapped_crime_category"])
+
+
+@mock.patch("gta_urban_analytics.transform.crime.unify_datasets.os.path.exists")
+@mock.patch("gta_urban_analytics.transform.crime.unify_datasets.glob.glob")
+@mock.patch("gta_urban_analytics.transform.crime.unify_datasets.pd.read_csv")
+def test_unify_durham_bad_month_yields_nat(mock_read_csv, mock_glob, mock_exists):
+    """F-15: an unrecognised occurrence_month must produce NaT, not a fabricated January."""
+    mock_exists.return_value = False
+    mock_glob.side_effect = lambda path: (
+        ["/fake/data/01_raw/Durham_Assaults.csv"] if "Durham_" in path else []
+    )
+
+    def read_side_effect(filename, **kwargs):
+        if "Durham_Assaults" in filename:
+            return pd.DataFrame(
+                {
+                    "event_unique_id": ["GO-good", "GO-bad"],
+                    "offence": ["Assault Level 1", "Assault Level 1"],
+                    "occurrence_year": [2025, 2025],
+                    "occurrence_month": ["Jan", "Xyz"],  # second month is unrecognised
+                    "occurrence_day": [1, 2],
+                    "lat": [43.85, 43.86], "lon": [-79.05, -79.06], "municipality": ["AJA", "AJA"],
+                }
+            )
+        return pd.DataFrame()
+
+    mock_read_csv.side_effect = read_side_effect
+
+    df = unify_datasets().set_index("source_identifier")
+    assert df.loc["Durham_GO-good", "occurrence_date"] == "2025-01-01"
+    assert pd.isna(df.loc["Durham_GO-bad", "occurrence_date"])

@@ -22,7 +22,6 @@ Depends on all prior pipeline steps having completed (Steps 1–7).
 import datetime
 import os
 import logging
-import shutil
 
 import geopandas as gpd
 import pandas as pd
