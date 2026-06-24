@@ -1,7 +1,7 @@
 # GTA Urban Analytics — Pipeline Deep-Dive Audit & Remediation Log
 
-**Status:** Complete — 19/19 findings resolved, T1–T15 done (only the F-19 Kepler-viz wiring remains, in
-the TS sub-project) · **Started:** 2026-06-23 · **Branch:** `chore/data-pipeline-audit`
+**Status:** Complete — 19/19 findings resolved (incl. the F-19 Kepler anomaly layer), T1–T15 done ·
+**Started:** 2026-06-23 · **Branches:** `chore/data-pipeline-audit` (audit, merged), `feat/anomaly-viz-layer` (viz)
 **Author:** automated deep-dive (Claude) · **Scope:** data acquisition, parsing, transformation, validation, analysis, and the data feeding the Kepler visualization.
 
 ---
@@ -224,9 +224,10 @@ dedup.)
   dedup key. Relates to F-02 (real vs artificial hotspots) and F-04.
 - **Status:** ✅ **Decision: keep data intact + separate anomaly layer.** New
   `build_coordinate_anomalies.py` (pipeline step) writes `coordinate_anomalies.csv` — coordinates with
-  ≥50 incidents (real data: **2,755 coords / 351,762 incidents / 43.5%**; threshold is a tunable module
-  constant). Incidents stay in all counts/rates. Remaining: wire the Kepler layer to render it, and
-  (optionally) emit per-year/standalone copies. (`tests/test_coordinate_anomalies.py`)
+  ≥50 incidents (post-fix real data: **2,754 coords / 344,203 incidents**; tunable threshold). Incidents
+  stay in all counts/rates. The Kepler viz now renders it as **Layer 5** — a magenta `point` overlay
+  sized + coloured by `incident_count` (full profile + embedded in the standalone build).
+  (`tests/test_coordinate_anomalies.py`)
 
 ### 🟠 Medium severity
 
@@ -478,8 +479,8 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
       layer to render it (+ optional per-year/standalone copies, and a tuned threshold). *See §6.*
 
 ### Suggested order
-Done: **T1–T15 (all backlog tasks).** **Remaining:** only the F-19 anomaly-layer wiring into the Kepler
-viz (TS sub-project — outside the data pipeline).
+Done: **T1–T15 + the F-19 Kepler anomaly layer (full + standalone profiles).** Audit fully complete —
+nothing outstanding.
 
 ---
 
@@ -514,6 +515,7 @@ viz (TS sub-project — outside the data pipeline).
 | 2026-06-24 | **T13/F-17**: refactored `pipeline.py` into `TRANSFORM_STEPS` (in-memory) + `DERIVED_STEPS` (from disk); removed the fake `df`-threading; documented incidents-not-offences. Behaviour-preserving. | F-17 | `tests/test_pipeline.py` (33 passed) |
 | 2026-06-24 | **T12/F-15**: factored `_per_capita_table` (cumulative "Total" → "Total (cumulative)") into `analyze.py` sections 3 & 4. | F-15 | `tests/test_analyze_percapita.py` |
 | 2026-06-24 | **T12/F-14**: tests for census build, year partition, `verify_mappings`, standalone-compact — every non-network module now covered. | F-14 | `uv run pytest` → 39 passed |
+| 2026-06-24 | **F-19 viz**: wired `coordinate_anomalies.csv` into the Kepler map as Layer 5 (magenta `point`, sized/coloured by `incident_count`); extended `PointLayerSpec`/`buildPointLayer`; embedded in the standalone build (`standaloneLoader` + `build-standalone.mjs` + `build_standalone_compact` copy). | F-19 | `tsc --noEmit` + `yarn build:standalone` green |
 
 **Note for whoever continues:** the data products under `data/02_transformed/` were **regenerated green
 on 2026-06-23** with all fixes applied, so they are current. Re-run `uv run transform` after any future
