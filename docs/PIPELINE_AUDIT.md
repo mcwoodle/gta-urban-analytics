@@ -301,7 +301,9 @@ dedup.)
 - **Impact:** Maintainability; double I/O of a 100 MB+ CSV.
 - **Fix:** Pass `df` through honestly or adopt an explicit "write-then-read" contract; document the
   incidents-vs-offences definition.
-- **Status:** ⬜ (task T13)
+- **Status:** ✅ Fixed — `pipeline.py` split into `TRANSFORM_STEPS` (phase 1, threads the frame) and
+  `DERIVED_STEPS` (phase 2, each reads from disk); removed the misleading `(func(), df)[1]` threading;
+  documented the incidents-vs-offences definition. (`tests/test_pipeline.py`)
 
 ### 🟡 Low severity / robustness / docs
 
@@ -465,8 +467,8 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
 - [x] **T11 · Reconcile documentation** (F-13). Done — README + CLAUDE.md + DataSets.md. *See §6.*
 - [ ] **T12 · Expand tests + nits** (F-14, F-15). dedup/date/filter tests; remove unused `shutil`;
       `NaT` on bad Durham month; strip Halton original; relabel analyze "Total" rate column.
-- [ ] **T13 · Pipeline data-flow clarity** (F-17). honest threading or explicit write-then-read;
-      document incidents-vs-offences.
+- [x] **T13 · Pipeline data-flow clarity** (F-17). Done — two-phase TRANSFORM/DERIVED split;
+      incidents-vs-offences documented. *See §6.*
 - [x] **T14 · `analyze.py` future** (F-18). Done — **Option B**: relabel York-only + fix CRS. A unified
       cross-region analyzer is an optional future module. *See §6.*
 - [x] **T15 · Placeholder-coordinate anomaly layer** (F-19). Done — **keep data intact** + new
@@ -474,8 +476,8 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
       layer to render it (+ optional per-year/standalone copies, and a tuned threshold). *See §6.*
 
 ### Suggested order
-Done: T1-T11, T14, T15. **Remaining:** T12 (analyze "Total" cosmetic + broader tests) · T13 (data-flow
-clarity) · wire the F-19 anomaly layer into the Kepler viz.
+Done: T1-T11, T13, T14, T15. **Remaining:** T12 (analyze "Total" cosmetic; census-build/partition
+tests) · wire the F-19 anomaly layer into the Kepler viz.
 
 ---
 
@@ -507,6 +509,7 @@ clarity) · wire the F-19 anomaly layer into the Kepler viz.
 | 2026-06-23 | Full suite green: 30 passed. | all | `uv run pytest` |
 | 2026-06-23 | Added `deduplicate_incidents` test (multi-offence MULTIPLE/concatenation) — closes a core F-14 gap. | F-14 | `tests/test_deduplicate_incidents.py` (31 passed) |
 | 2026-06-23 | **End-to-end run** (`uv run transform`): all 10 steps green (exit 0). Verified products: 801,183 rows · 0 non-canonical labels · 0 null-island · 30 municipalities; 8,593 quarantined to `invalid_data.csv` (Toronto 8,534 `(0,0)`); 2025 rate median 9.23/1k; `coordinate_anomalies.csv` = 2,754 coords. | all | transform log |
+| 2026-06-24 | **T13/F-17**: refactored `pipeline.py` into `TRANSFORM_STEPS` (in-memory) + `DERIVED_STEPS` (from disk); removed the fake `df`-threading; documented incidents-not-offences. Behaviour-preserving. | F-17 | `tests/test_pipeline.py` (33 passed) |
 
 **Note for whoever continues:** the data products under `data/02_transformed/` were **regenerated green
 on 2026-06-23** with all fixes applied, so they are current. Re-run `uv run transform` after any future
@@ -521,7 +524,7 @@ _(append entries here as fixes land — include the test/command that proves eac
 ## 7. Fix ↔ test coverage matrix
 
 Every behaviour-changing fix shipped on this branch is locked by at least one unit test. Keep this
-table in sync when changing the corrected logic. (`uv run pytest` → **31 passed**.)
+table in sync when changing the corrected logic. (`uv run pytest` → **33 passed**.)
 
 | Fix | Behaviour locked | Test(s) |
 |-----|------------------|---------|
@@ -542,6 +545,7 @@ table in sync when changing the corrected logic. (`uv run pytest` → **31 passe
 | **F-12** paginated downloader | stops on empty page; CSV headers union all feature keys | `test_paginated.py` (5 tests) |
 | **F-07** epoch-ms date parsing | YTD/MCI/Peel dates parse correctly (guards the schema-dtype trap) | `test_unify_dates.py` (3 tests) |
 | (core) deduplication | multi-offence → `MULTIPLE` + concatenated; one row per id | `test_deduplicate_incidents.py` |
+| **F-17** two-phase orchestration | phase 1 threads + writes CSV; phase 2 builds derived; empty-abort | `test_pipeline.py` (2 tests) |
 
 **Not unit-tested (by design):** F-18 / doc relabels (README/CLAUDE.md/docstring — no logic); pipeline
 wiring in `PIPELINE_STEPS` and the anomaly `threshold` default (config, exercised via real-data runs in

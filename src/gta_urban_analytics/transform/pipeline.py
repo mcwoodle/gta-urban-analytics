@@ -1,7 +1,22 @@
 """
 Transform Pipeline
 ==================
-Runs the full sequence of data transformations in memory (see PIPELINE_STEPS below).
+Two explicit phases (audit F-17 — the data flow is now honest):
+
+  Phase 1 — in-memory transform (``TRANSFORM_STEPS``): unify → verify → filter →
+  deduplicate. A single working DataFrame is threaded through these steps and then
+  written once to ``data/02_transformed/unified_data.csv``. That CSV is the
+  hand-off to phase 2.
+
+  Phase 2 — derived products (``DERIVED_STEPS``): census, crime-rate enrichment,
+  shooting arcs, coordinate anomalies, standalone-compact variants, and per-year
+  partitions. Each reads what it needs from disk (the unified CSV and/or the census
+  GeoJSON written by earlier steps) and writes its own output(s) — they do NOT take
+  the in-memory frame.
+
+Note: phase 2 counts post-dedup *incidents* (a multi-offence occurrence is one
+row), not individual offences — so e.g. ``crime_rate_per_1k`` is incidents per
+1,000 residents.
 
 Outputs:
   - data/02_transformed/unified_data.csv
@@ -39,20 +54,32 @@ _project_root = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '
 
 VERBOSE = True
 
-# ── Pipeline steps ────────────────────────────────────────────────────────
-# Each entry is (description, callable). Callables receive and return the
-# current DataFrame — steps that don't transform it return it unchanged.
-PIPELINE_STEPS = [
-    ("Unifying regional datasets",                  lambda _df: unify_datasets()),
-    ("Verifying crime type mappings",               lambda df: (verify_mappings(df), df)[1]),
-    ("Filtering invalid rows",                      lambda df: filter_invalid_incidents(df, verbose=VERBOSE)),
-    ("Deduplicating incidents",                     lambda df: deduplicate_incidents(df, verbose=VERBOSE)),
-    ("Building GTA census GeoJSON",                 lambda df: (build_gta_census_geojson(), df)[1]),
-    ("Enriching census DAs with crime rate",        lambda df: (enrich_census_with_crime_rate(reference_year=REFERENCE_YEAR, verbose=VERBOSE), df)[1]),
-    ("Building shooting arcs",                      lambda df: (build_shooting_arcs(verbose=VERBOSE), df)[1]),
-    ("Flagging coordinate anomalies",               lambda df: (build_coordinate_anomalies(verbose=VERBOSE), df)[1]),
-    ("Building standalone compact variants",        lambda df: (build_standalone_compact(verbose=VERBOSE), df)[1]),
-    ("Partitioning outputs by year (2020–present)", lambda df: (partition_all_years(verbose=VERBOSE), df)[1]),
+
+def _verify_and_pass(df):
+    """verify_mappings is a check (returns None); keep the frame flowing."""
+    verify_mappings(df)
+    return df
+
+
+# ── Phase 1: in-memory transform ──────────────────────────────────────────
+# Each callable receives and returns the working DataFrame.
+TRANSFORM_STEPS = [
+    ("Unifying regional datasets",      lambda _df: unify_datasets()),
+    ("Verifying crime type mappings",   _verify_and_pass),
+    ("Filtering invalid rows",          lambda df: filter_invalid_incidents(df, verbose=VERBOSE)),
+    ("Deduplicating incidents",         lambda df: deduplicate_incidents(df, verbose=VERBOSE)),
+]
+
+# ── Phase 2: derived products ─────────────────────────────────────────────
+# Each callable reads the written unified_data.csv / census GeoJSON from disk and
+# writes its own output(s). None of them take the in-memory frame.
+DERIVED_STEPS = [
+    ("Building GTA census GeoJSON",                 lambda: build_gta_census_geojson(verbose=VERBOSE)),
+    ("Enriching census DAs with crime rate",        lambda: enrich_census_with_crime_rate(reference_year=REFERENCE_YEAR, verbose=VERBOSE)),
+    ("Building shooting arcs",                      lambda: build_shooting_arcs(verbose=VERBOSE)),
+    ("Flagging coordinate anomalies",               lambda: build_coordinate_anomalies(verbose=VERBOSE)),
+    ("Building standalone compact variants",        lambda: build_standalone_compact(verbose=VERBOSE)),
+    ("Partitioning outputs by year (2020–present)", lambda: partition_all_years(verbose=VERBOSE)),
 ]
 
 
@@ -65,13 +92,25 @@ def _log_step(step_num, total, description, *, first=False):
     logger.info("=" * 60)
 
 
-def run():
-    """Execute the full transform pipeline in memory, writing a single output CSV."""
-    total = len(PIPELINE_STEPS)
-    df = None
-    write_csv_after_step = 4  # write unified CSV between Deduplicate and Census
+def _write_unified(df):
+    """Persist the unified table — the hand-off from phase 1 to phase 2."""
+    output_dir = os.path.join(_project_root, 'data', '02_transformed')
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, 'unified_data.csv')
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info(f"Writing {len(df):,} rows to {output_file}")
+    logger.info("=" * 60)
+    df.to_csv(output_file, index=False)
 
-    for i, (description, action) in enumerate(PIPELINE_STEPS, start=1):
+
+def run():
+    """Build the unified incident table (phase 1), then the derived products (phase 2)."""
+    total = len(TRANSFORM_STEPS) + len(DERIVED_STEPS)
+
+    # ── Phase 1: in-memory transform → unified_data.csv ──
+    df = None
+    for i, (description, action) in enumerate(TRANSFORM_STEPS, start=1):
         _log_step(i, total, description, first=(i == 1))
         df = action(df)
 
@@ -79,15 +118,12 @@ def run():
             logger.error("No data to process. Aborting pipeline.")
             return
 
-        if i == write_csv_after_step:
-            output_dir = os.path.join(_project_root, 'data', '02_transformed')
-            os.makedirs(output_dir, exist_ok=True)
-            output_file = os.path.join(output_dir, 'unified_data.csv')
-            logger.info("")
-            logger.info("=" * 60)
-            logger.info(f"Writing {len(df):,} rows to {output_file}")
-            logger.info("=" * 60)
-            df.to_csv(output_file, index=False)
+    _write_unified(df)
+
+    # ── Phase 2: derived products (each reads the written files from disk) ──
+    for j, (description, action) in enumerate(DERIVED_STEPS, start=len(TRANSFORM_STEPS) + 1):
+        _log_step(j, total, description)
+        action()
 
     logger.info("Transform pipeline complete.")
 
