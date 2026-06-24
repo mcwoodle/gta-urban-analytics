@@ -37,8 +37,9 @@ def _download_statcan_zip(census_url: str, output_dir: Path, desc: str = "Downlo
     """
     print(f"Connecting to Statistics Canada for {desc}...")
     
-    # stream=True forces requests to leave the connection open and download in pieces
-    response = requests.get(census_url, stream=True)
+    # stream=True forces requests to leave the connection open and download in pieces.
+    # (connect, read) timeouts so a stalled StatCan connection fails instead of hanging (F-12).
+    response = requests.get(census_url, stream=True, timeout=(30, 120))
     response.raise_for_status()
     
     # Ask the server exactly how large the file is (in bytes)
