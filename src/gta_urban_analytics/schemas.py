@@ -120,8 +120,10 @@ toronto_schema = DataFrameSchema({
 
 toronto_ytd_schema = DataFrameSchema({
     "OBJECTID": Column(pa.Int, nullable=True, required=False, coerce=True),
-    "OCC_DATE_AGOL": Column(pa.String, nullable=True, required=False, coerce=True),
-    "REPORT_DATE_AGOL": Column(pa.String, nullable=True, required=False, coerce=True),
+    # Epoch milliseconds (parsed with unit='ms'); typed numeric so the schema
+    # matches the data and a future coercion-capture won't turn them to NaT (F-07).
+    "OCC_DATE_AGOL": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "REPORT_DATE_AGOL": Column(pa.Float, nullable=True, required=False, coerce=True),
     "EVENT_UNIQUE_ID": Column(pa.String, nullable=True, required=False, coerce=True),
     "DIVISION": Column(pa.String, nullable=True, required=False, coerce=True),
     "PREMISES_TYPE": Column(pa.String, nullable=True, required=False, coerce=True),
