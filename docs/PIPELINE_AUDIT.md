@@ -506,11 +506,13 @@ clarity) · wire the F-19 anomaly layer into the Kepler viz.
 | 2026-06-23 | **T10/F-10**: investigated epoch-ms tz — local-time-as-UTC, so dates are correct (Peel 0.00% mismatch; Toronto YTD = local midnight). No change needed. | F-10 | real-data check |
 | 2026-06-23 | Full suite green: 30 passed. | all | `uv run pytest` |
 | 2026-06-23 | Added `deduplicate_incidents` test (multi-offence MULTIPLE/concatenation) — closes a core F-14 gap. | F-14 | `tests/test_deduplicate_incidents.py` (31 passed) |
+| 2026-06-23 | **End-to-end run** (`uv run transform`): all 10 steps green (exit 0). Verified products: 801,183 rows · 0 non-canonical labels · 0 null-island · 30 municipalities; 8,593 quarantined to `invalid_data.csv` (Toronto 8,534 `(0,0)`); 2025 rate median 9.23/1k; `coordinate_anomalies.csv` = 2,754 coords. | all | transform log |
 
-**Note for whoever continues:** the data products under `data/02_transformed/` are stale w.r.t. these
-fixes. Regenerate with `uv run transform` (downloads must already be present) so `unified_data.csv`,
-the census GeoJSON, shooting arcs, and yearly partitions reflect the canonical Durham labels and the
-dropped null-island points.
+**Note for whoever continues:** the data products under `data/02_transformed/` were **regenerated green
+on 2026-06-23** with all fixes applied, so they are current. Re-run `uv run transform` after any future
+fix (raw downloads must be present in `data/01_raw/`). Headline note: the all-DA `crime_rate_per_1k`
+max (~4128/1k) is a placeholder-coordinate artifact (F-19) — trust the median and the anomaly layer;
+this is the open viz-wiring follow-up.
 
 _(append entries here as fixes land — include the test/command that proves each fix)_
 
