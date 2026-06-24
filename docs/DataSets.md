@@ -1,3 +1,13 @@
+# Data Sources
+
+> **How to download (current):** all sources are fetched by `uv run download` (or `uv run
+> full-pipeline`), which writes raw CSVs to `data/01_raw/` — *not* `dataSetDownloads/`. There are no
+> per-region `download_*_data.py` scripts; the `uv run download_*_data.py` entries below are
+> historical. Peel and Halton are pulled from ArcGIS **FeatureServer query** endpoints (see
+> `extract/peel.py` / `extract/halton.py`), not Hub CSV exports, so their "GIS Identifier" may not map
+> to a Hub item id. York and Toronto YTD feeds are written with a date stamp (`*_to_<date>.csv`); only
+> the newest snapshot per source is loaded (audit F-05).
+
 Region | Crime Type | Time Period | Web Link | Direct Download URL | GIS Idenfitier
 ------|------------|------|---------|------|------
 Durham | Drug Violations | 2020-* | https://open-data-drps.hub.arcgis.com/datasets/e0f56f8938c04215895b4c99d86e335f_0/explore?location=44.128198%2C-78.859448%2C10&showTable=true | `uv run download_durham_data.py` (https://hub.arcgis.com/api/download/v1/items/e0f56f8938c04215895b4c99d86e335f/csv?layers=0) | e0f56f8938c04215895b4c99d86e335f

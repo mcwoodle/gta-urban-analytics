@@ -27,11 +27,20 @@ _project_root = os.path.normpath(
 # DAs smaller than this threshold produce extremely noisy rates; null them out.
 _MIN_POPULATION_FOR_RATE = 50
 
+# Reference year for the top-level (headline) crime rate. All-years counts divided
+# by single-year (2021) population were not comparable across regions, whose data
+# windows differ wildly (Toronto ~12yr vs Halton ~1yr). 2025 is the only full
+# calendar year covered by all five regions, so the headline crime_rate_per_1k is
+# computed over 2025 only (audit F-04). Per-year partition folders keep their own
+# single-year rates and pass reference_year=None. Revisit as the data grows.
+REFERENCE_YEAR = 2025
+
 
 def enrich_census_with_crime_rate(
     crime_df: pd.DataFrame | None = None,
     census_gdf: gpd.GeoDataFrame | None = None,
     output_dir: str | None = None,
+    reference_year: int | None = None,
     verbose: bool = True,
 ) -> gpd.GeoDataFrame:
     """Add crime_count and crime_rate_per_1k to gta_census_da.geojson.
@@ -74,8 +83,9 @@ def enrich_census_with_crime_rate(
             das = das.drop(columns=col)
 
     # --- Load crime points ---
+    load_cols = ["lat", "lon"] + (["occurrence_date"] if reference_year is not None else [])
     if crime_df is not None:
-        crime_points_df = crime_df[["lat", "lon"]].dropna().copy()
+        crime_points_df = crime_df[load_cols].dropna(subset=["lat", "lon"]).copy()
     else:
         crime_csv = os.path.join(
             _project_root, "data", "02_transformed", "unified_data.csv"
@@ -87,9 +97,22 @@ def enrich_census_with_crime_rate(
         if verbose:
             logger.info("Loading unified crime points...")
         crime_points_df = pd.read_csv(
-            crime_csv, usecols=["lat", "lon"], low_memory=False
+            crime_csv, usecols=load_cols, low_memory=False
         )
         crime_points_df = crime_points_df.dropna(subset=["lat", "lon"])
+
+    # Restrict to the reference year so cross-region rates are comparable (F-04).
+    if reference_year is not None:
+        years = pd.to_datetime(
+            crime_points_df["occurrence_date"], errors="coerce"
+        ).dt.year
+        before = len(crime_points_df)
+        crime_points_df = crime_points_df[years == reference_year]
+        if verbose:
+            logger.info(
+                f"Restricting crime to reference year {reference_year}: "
+                f"{len(crime_points_df):,} of {before:,} points."
+            )
 
     if verbose:
         logger.info(f"Building GeoDataFrame of {len(crime_points_df):,} crime points...")

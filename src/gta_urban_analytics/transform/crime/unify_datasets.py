@@ -2,6 +2,7 @@ import pandas as pd
 import glob
 import os
 import json
+import re
 import logging
 from importlib import resources
 from pyproj import Transformer
@@ -31,6 +32,102 @@ def map_crime(crime_type, mapping):
 
 # Setup pyproj transformer for York (EPSG:3857 Web Mercator to EPSG:4326 WGS84)
 transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+
+# Canonical fallback for Durham's file-level categories. Durham crimes are mapped
+# through the JSON taxonomy via their offence text (like every other region); this
+# map is used only when an offence is missing/unmapped so the result is still one
+# of the canonical categories (audit F-01).
+_DURHAM_CANONICAL_CATEGORY = {
+    "Drug Violations": "Drug Offences",
+    "Robbery": "Robbery",
+    "Break and Enter": "Break & Enter",
+    "Theft Over 5000": "Theft",
+    "Assaults": "Assault",
+    "Auto Theft": "Auto Theft",
+    "Shootings and Firearm Discharge": "Weapons Offences",
+}
+
+# GTA coordinate sanity box. Anything outside this — including the (0,0) "null
+# island" Toronto uses for redacted locations — is treated as a missing coordinate
+# so the downstream filter quarantines the row to invalid_data.csv (audit F-03).
+_GTA_LAT_MIN, _GTA_LAT_MAX = 43.0, 44.6
+_GTA_LON_MIN, _GTA_LON_MAX = -80.6, -78.2
+
+
+def _null_out_of_bounds_coords(df: pd.DataFrame) -> pd.DataFrame:
+    """Set lat/lon to NaN for rows outside the GTA box (incl. (0,0))."""
+    lat = pd.to_numeric(df["lat"], errors="coerce")
+    lon = pd.to_numeric(df["lon"], errors="coerce")
+    in_box = (
+        lat.between(_GTA_LAT_MIN, _GTA_LAT_MAX)
+        & lon.between(_GTA_LON_MIN, _GTA_LON_MAX)
+    )
+    n_bad = int((~in_box).sum())
+    if n_bad:
+        logging.info(
+            f"Nulling {n_bad:,} out-of-bounds/zero coordinates "
+            f"(e.g. Toronto (0,0) redactions) so they are quarantined as invalid."
+        )
+    df = df.copy()
+    df["lat"] = lat.where(in_box)
+    df["lon"] = lon.where(in_box)
+    return df
+
+
+# Municipality name normalisation (audit F-08). Regions publish municipalities in
+# different forms — Durham as 3-letter UPPER codes, Halton/Peel as UPPER (Peel
+# drops internal spaces), York/Toronto as Title case. Aliases resolve the codes and
+# no-space spellings; everything else is title-cased so the same city is one label.
+_MUNICIPALITY_ALIASES = {
+    # Durham Region 3-letter codes (its eight municipalities)
+    "AJA": "Ajax", "BRO": "Brock", "CLA": "Clarington", "OSH": "Oshawa",
+    "PIC": "Pickering", "SCU": "Scugog", "UXB": "Uxbridge", "WHI": "Whitby",
+    # Durham cross-boundary codes (incidents recorded outside Durham)
+    "TOR": "Toronto", "MAR": "Markham", "MIS": "Mississauga", "VAU": "Vaughan",
+    "BRA": "Brampton", "GEO": "Georgina", "RHL": "Richmond Hill", "MIL": "Milton",
+    "CKL": "Kawartha Lakes", "OUT": "Outside Region",
+    # Peel's no-internal-space spellings
+    "HALTONHILLS": "Halton Hills", "RICHMONDHILL": "Richmond Hill",
+}
+
+
+def _normalize_municipality(value):
+    """Resolve a raw municipality value to a canonical Title-case name (F-08)."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return value
+    s = str(value).strip()
+    if not s:
+        return s
+    return _MUNICIPALITY_ALIASES.get(s.upper(), s.title())
+
+
+# Date-stamped snapshot files (``*_to_YYYY-MM-DD.csv``) accumulate in 01_raw as the
+# York/Toronto feeds are re-downloaded; the glob would load every stale copy and
+# double-count. Keep only the newest snapshot per logical source (audit F-05/F-06).
+_SNAPSHOT_RE = re.compile(r"^(.*_to_)(\d{4}-\d{2}-\d{2})\.csv$")
+
+
+def _drop_stale_snapshots(files):
+    """Keep only the newest ``*_to_<date>.csv`` per prefix; pass others through."""
+    latest = {}
+    passthrough = []
+    for f in files:
+        m = _SNAPSHOT_RE.match(os.path.basename(f))
+        if not m:
+            passthrough.append(f)
+            continue
+        prefix, date = m.group(1), m.group(2)
+        if prefix not in latest or date > latest[prefix][0]:
+            latest[prefix] = (date, f)
+    kept = passthrough + [path for _, path in latest.values()]
+    dropped = len(files) - len(kept)
+    if dropped > 0:
+        logging.warning(
+            f"Ignoring {dropped} stale dated snapshot file(s) in 01_raw; "
+            f"keeping the newest per source."
+        )
+    return kept
+
 
 def unify_datasets() -> pd.DataFrame:
     """Load and unify all regional raw CSVs into a single DataFrame.
@@ -63,20 +160,29 @@ def unify_datasets() -> pd.DataFrame:
         if 'occurrence_year' in df.columns:
             month_map = {'Jan':'01','Feb':'02','Mar':'03','Apr':'04','May':'05','Jun':'06',
                          'Jul':'07','Aug':'08','Sep':'09','Oct':'10','Nov':'11','Dec':'12'}
-            m = df['occurrence_month'].map(month_map).fillna('01')
+            # An unrecognised/missing month yields NaT rather than a fabricated January (F-15).
+            m = df['occurrence_month'].map(month_map)
             y = df['occurrence_year'].fillna(0).astype(int).astype(str)
             d = df['occurrence_day'].fillna(1).astype(int).astype(str).str.zfill(2)
             dates = pd.to_datetime(y + '-' + m + '-' + d, errors='coerce').dt.strftime('%Y-%m-%d')
         else:
             dates = pd.NaT
 
+        # Original crime type: prefer the per-incident offence text, else the
+        # file-level category. Map through the canonical JSON taxonomy like every
+        # other region (audit F-01) instead of using the filename-derived label;
+        # fall back to a canonicalised file category only when unmapped.
+        original = df.get('offence', pd.Series([file_category] * len(df))).fillna(file_category)
+        mapped = original.apply(_map)
+        fallback = _DURHAM_CANONICAL_CATEGORY.get(file_category, file_category)
+        mapped = mapped.mask(mapped == "Other", fallback)
+
         out = pd.DataFrame({
             'source_file_name': raw_file,
             'source_identifier': 'Durham_' + df.get('event_unique_id', df.index.to_series().astype(str)).astype(str),
             'region': 'Durham',
-            # Use 'offence' column if available, fall back to the filename-derived category
-            'original_crime_type': df.get('offence', pd.Series([file_category]*len(df))).fillna(file_category),
-            'mapped_crime_category': file_category,
+            'original_crime_type': original,
+            'mapped_crime_category': mapped,
             'occurrence_date': dates,
             'lat': df.get('lat'),
             'lon': df.get('lon'),
@@ -135,7 +241,7 @@ def unify_datasets() -> pd.DataFrame:
         all_dfs.append(out)
 
     # Toronto (historical MCI dump + YTD feed share the same Toronto_*.csv glob)
-    for f in sorted(glob.glob(os.path.join(data_dir, 'Toronto_*.csv'))):
+    for f in sorted(_drop_stale_snapshots(glob.glob(os.path.join(data_dir, 'Toronto_*.csv')))):
         logging.info(f"Processing Toronto: {f}")
         raw_file = os.path.splitext(os.path.basename(f))[0]
         df = pd.read_csv(f, low_memory=False)
@@ -169,7 +275,7 @@ def unify_datasets() -> pd.DataFrame:
         all_dfs.append(out)
 
     # York
-    for f in glob.glob(os.path.join(data_dir, 'York_*.csv')):
+    for f in _drop_stale_snapshots(glob.glob(os.path.join(data_dir, 'York_*.csv'))):
         logging.info(f"Processing York: {f}")
         raw_file = os.path.splitext(os.path.basename(f))[0]
         df = pd.read_csv(f, low_memory=False)
@@ -211,6 +317,9 @@ def unify_datasets() -> pd.DataFrame:
     logging.info("Concatenating all regions...")
     if all_dfs:
         unified_df = pd.concat(all_dfs, ignore_index=True)
+        unified_df = _null_out_of_bounds_coords(unified_df)
+        unified_df["municipality"] = unified_df["municipality"].map(_normalize_municipality)
+        unified_df["original_crime_type"] = unified_df["original_crime_type"].str.strip()
         logging.info(f"Unified {len(unified_df):,} rows × {len(unified_df.columns)} columns")
         return unified_df
     else:

@@ -1,7 +1,12 @@
 """
-GTA Crime Data Analysis
-=======================
-Reads a crime occurrence CSV and produces per-year insights:
+York Region Crime Analysis (exploratory, York-only)
+===================================================
+NOTE: This tool consumes the RAW York Region CSV (York column names, York
+municipalities/populations, York-area anomaly locations). It does NOT read the
+unified multi-region dataset; cross-region analysis lives in the census
+enrichment + Kepler outputs. See docs/PIPELINE_AUDIT.md (F-18).
+
+Reads a York crime occurrence CSV and produces per-year insights:
   1. Total incidents by municipality
   2. Total incidents by municipality × crime type
   3. All of the above with anomaly locations removed (500m radius)
@@ -22,6 +27,7 @@ import math
 import argparse
 import pandas as pd
 import numpy as np
+from pyproj import Transformer
 
 # ---------------------------------------------------------------------------
 # CONFIG
@@ -89,6 +95,17 @@ PERSON_TYPES = {
 # HELPERS
 # ---------------------------------------------------------------------------
 
+# Raw York x,y are EPSG:3857 (Web Mercator); the anomaly locations are UTM Zone
+# 17N (EPSG:26917). Incident coordinates MUST be reprojected before the metric
+# 500 m distance test, or nothing is ever flagged (audit F-02).
+_WM_TO_UTM17N = Transformer.from_crs("EPSG:3857", "EPSG:26917", always_xy=True)
+
+
+def webmercator_to_utm17n(x, y):
+    """Reproject Web Mercator (EPSG:3857) x,y to UTM Zone 17N (EPSG:26917)."""
+    return _WM_TO_UTM17N.transform(x, y)
+
+
 def euclidean_dist(x1, y1, x2, y2):
     return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
@@ -107,6 +124,16 @@ def per_1k(count, pop):
     if pop == 0:
         return 0.0
     return round(count / pop * 1000, 2)
+
+
+def _per_capita_table(pivot):
+    """Convert a counts pivot (year columns + 'Total') to incidents per 1,000
+    residents. The 'Total' column becomes a cumulative multi-year rate, so it is
+    renamed to 'Total (cumulative)' to avoid being read as an annual rate (F-15)."""
+    rates = pivot.copy()
+    for col in rates.columns:
+        rates[col] = rates.apply(lambda r: per_1k(r[col], POPULATION.get(r.name, 0)), axis=1)
+    return rates.rename(columns={"Total": "Total (cumulative)"})
 
 
 def save(df, name):
@@ -157,7 +184,17 @@ def main():
 
     # ── Mark anomaly-adjacent records ──────────────────────────────────────
     print("Flagging anomaly-adjacent incidents (500 m radius) …")
-    df["near_anomaly"] = df.apply(lambda r: is_near_anomaly(r["x"], r["y"]), axis=1)
+    # Reproject raw Web-Mercator x,y → UTM 17N so the 500 m anomaly test is valid (F-02).
+    coord_mask = df["x"].notna() & df["y"].notna()
+    df["x_utm"] = np.nan
+    df["y_utm"] = np.nan
+    if coord_mask.any():
+        ux, uy = webmercator_to_utm17n(
+            df.loc[coord_mask, "x"].to_numpy(), df.loc[coord_mask, "y"].to_numpy()
+        )
+        df.loc[coord_mask, "x_utm"] = ux
+        df.loc[coord_mask, "y_utm"] = uy
+    df["near_anomaly"] = df.apply(lambda r: is_near_anomaly(r["x_utm"], r["y_utm"]), axis=1)
     n_flagged = df["near_anomaly"].sum()
     print(f"  Flagged {n_flagged:,} incidents near anomaly locations")
 
@@ -195,11 +232,7 @@ def main():
 
         # 3 ─ Per-Capita Rates
         print("\n── 3. Incidents per 1,000 Residents ──")
-        t3 = t1_pivot.copy()
-        for col in t3.columns:
-            t3[col] = t3.apply(
-                lambda r: per_1k(r[col], POPULATION.get(r.name, 0)), axis=1
-            )
+        t3 = _per_capita_table(t1_pivot)
         print(t3.to_string())
         save(t3, f"{tag}_3_per_capita_rate")
 
@@ -210,12 +243,8 @@ def main():
         t4_pivot = t4.pivot_table(index="Municipality", columns="Year",
                                   values="Violent", fill_value=0, aggfunc="sum")
         t4_pivot["Total"] = t4_pivot.sum(axis=1)
-        t4_rate = t4_pivot.copy()
-        for col in t4_rate.columns:
-            t4_rate[col] = t4_rate.apply(
-                lambda r: per_1k(r[col], POPULATION.get(r.name, 0)), axis=1
-            )
-        print(t4_rate.sort_values("Total", ascending=False).to_string())
+        t4_rate = _per_capita_table(t4_pivot)
+        print(t4_rate.sort_values("Total (cumulative)", ascending=False).to_string())
         save(t4_pivot, f"{tag}_4a_violent_crime_counts")
         save(t4_rate, f"{tag}_4b_violent_crime_per_1k")
 
