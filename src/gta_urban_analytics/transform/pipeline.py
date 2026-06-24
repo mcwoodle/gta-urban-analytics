@@ -7,6 +7,7 @@ Outputs:
   - data/02_transformed/unified_data.csv
   - data/02_transformed/gta_census_da.geojson   (enriched with crime_count + crime_rate_per_1k)
   - data/02_transformed/shooting_arcs.csv
+  - data/02_transformed/coordinate_anomalies.csv
   - data/02_transformed/standalone/unified_data_compact.csv
   - data/02_transformed/standalone/gta_census_da_compact.geojson
   - data/02_transformed/standalone/shooting_arcs.csv
@@ -24,8 +25,9 @@ from gta_urban_analytics.transform.crime.verify_mappings import verify_mappings
 from gta_urban_analytics.transform.crime.filter_invalid_incidents import filter_invalid_incidents
 from gta_urban_analytics.transform.crime.deduplicate_incidents import deduplicate_incidents
 from gta_urban_analytics.transform.crime.build_shooting_arcs import build_shooting_arcs
+from gta_urban_analytics.transform.crime.build_coordinate_anomalies import build_coordinate_anomalies
 from gta_urban_analytics.transform.census.build_gta_census import build_gta_census_geojson
-from gta_urban_analytics.transform.census.enrich_with_crime_rate import enrich_census_with_crime_rate
+from gta_urban_analytics.transform.census.enrich_with_crime_rate import enrich_census_with_crime_rate, REFERENCE_YEAR
 from gta_urban_analytics.transform.build_standalone_compact import build_standalone_compact
 from gta_urban_analytics.transform.partition_by_year import partition_all_years
 
@@ -46,8 +48,9 @@ PIPELINE_STEPS = [
     ("Filtering invalid rows",                      lambda df: filter_invalid_incidents(df, verbose=VERBOSE)),
     ("Deduplicating incidents",                     lambda df: deduplicate_incidents(df, verbose=VERBOSE)),
     ("Building GTA census GeoJSON",                 lambda df: (build_gta_census_geojson(), df)[1]),
-    ("Enriching census DAs with crime rate",        lambda df: (enrich_census_with_crime_rate(verbose=VERBOSE), df)[1]),
+    ("Enriching census DAs with crime rate",        lambda df: (enrich_census_with_crime_rate(reference_year=REFERENCE_YEAR, verbose=VERBOSE), df)[1]),
     ("Building shooting arcs",                      lambda df: (build_shooting_arcs(verbose=VERBOSE), df)[1]),
+    ("Flagging coordinate anomalies",               lambda df: (build_coordinate_anomalies(verbose=VERBOSE), df)[1]),
     ("Building standalone compact variants",        lambda df: (build_standalone_compact(verbose=VERBOSE), df)[1]),
     ("Partitioning outputs by year (2020–present)", lambda df: (partition_all_years(verbose=VERBOSE), df)[1]),
 ]
