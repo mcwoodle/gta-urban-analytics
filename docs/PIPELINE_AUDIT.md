@@ -1,6 +1,7 @@
 # GTA Urban Analytics — Pipeline Deep-Dive Audit & Remediation Log
 
-**Status:** In progress · **Started:** 2026-06-23 · **Branch:** `chore/data-pipeline-audit`
+**Status:** Complete — 19/19 findings resolved, T1–T15 done (only the F-19 Kepler-viz wiring remains, in
+the TS sub-project) · **Started:** 2026-06-23 · **Branch:** `chore/data-pipeline-audit`
 **Author:** automated deep-dive (Claude) · **Scope:** data acquisition, parsing, transformation, validation, analysis, and the data feeding the Kepler visualization.
 
 ---
@@ -330,8 +331,9 @@ dedup.)
 - **Where:** `tests/test_unify_datasets.py` was the only test (source_identifier prefixing; its
   `Toronto_Major_Crime` mock branch is dead — glob mocked to `[]`). No tests for CRS reprojection,
   dates, dedup, mapping, filtering, census, analyze.
-- **Status:** 🟡 Every logic correction has ≥1 test (31 tests; §7 matrix); dedup, date parsing, and the
-  download helpers are now covered too. Remaining untested: census build + year partitioning (T12).
+- **Status:** ✅ Every non-network module now has unit tests (39 tests; §7 matrix) — incl. census
+  build, year partitioning, `verify_mappings`, standalone-compact, dedup, dates, pagination, and the
+  pipeline orchestration. Only `hub.py`/`census_data.py` network I/O is intentionally not unit-tested.
 
 #### F-15 — Minor correctness/cleanliness nits
 - `partition_by_year.py:25` imports `shutil` (unused).
@@ -340,9 +342,9 @@ dedup.)
 - `unify_datasets.py` Durham month map: unrecognised month silently `fillna('01')` → wrong month vs
   `NaT`.
 - Halton `original_crime_type` keeps leading whitespace (`" MVC - HIT & RUN"`).
-- **Status:** 🟡 Done: removed unused `shutil`; Durham bad month → `NaT`; `original_crime_type`
-  stripped globally (real data: 0 whitespace-padded values left). Remaining: the `analyze.py` "Total"
-  rate-column cosmetic (T12).
+- **Status:** ✅ All nits done — removed unused `shutil`; Durham bad month → `NaT`;
+  `original_crime_type` stripped globally; `analyze.py` per-capita "Total" relabeled "Total
+  (cumulative)" via `_per_capita_table`. (`tests/test_analyze_percapita.py`)
 
 #### F-16 — Generated-artifact tracking  ✅ verified OK
 - **Checked:** `git ls-files data/` → 0 tracked; `visualize-kepler-map/dist/` is gitignored. No large
@@ -465,8 +467,8 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
 - [x] **T9 · Harden downloads** (F-12). Done — timeouts + retries; empty-page break; union headers. *See §6.*
 - [x] **T10 · Epoch-ms timezone semantics** (F-10). Done — verified local-as-UTC; no date shift. *See §6.*
 - [x] **T11 · Reconcile documentation** (F-13). Done — README + CLAUDE.md + DataSets.md. *See §6.*
-- [ ] **T12 · Expand tests + nits** (F-14, F-15). dedup/date/filter tests; remove unused `shutil`;
-      `NaT` on bad Durham month; strip Halton original; relabel analyze "Total" rate column.
+- [x] **T12 · Expand tests + nits** (F-14, F-15). Done — all non-network modules tested (39); analyze
+      "Total" relabeled. *See §6.*
 - [x] **T13 · Pipeline data-flow clarity** (F-17). Done — two-phase TRANSFORM/DERIVED split;
       incidents-vs-offences documented. *See §6.*
 - [x] **T14 · `analyze.py` future** (F-18). Done — **Option B**: relabel York-only + fix CRS. A unified
@@ -476,8 +478,8 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
       layer to render it (+ optional per-year/standalone copies, and a tuned threshold). *See §6.*
 
 ### Suggested order
-Done: T1-T11, T13, T14, T15. **Remaining:** T12 (analyze "Total" cosmetic; census-build/partition
-tests) · wire the F-19 anomaly layer into the Kepler viz.
+Done: **T1–T15 (all backlog tasks).** **Remaining:** only the F-19 anomaly-layer wiring into the Kepler
+viz (TS sub-project — outside the data pipeline).
 
 ---
 
@@ -510,6 +512,8 @@ tests) · wire the F-19 anomaly layer into the Kepler viz.
 | 2026-06-23 | Added `deduplicate_incidents` test (multi-offence MULTIPLE/concatenation) — closes a core F-14 gap. | F-14 | `tests/test_deduplicate_incidents.py` (31 passed) |
 | 2026-06-23 | **End-to-end run** (`uv run transform`): all 10 steps green (exit 0). Verified products: 801,183 rows · 0 non-canonical labels · 0 null-island · 30 municipalities; 8,593 quarantined to `invalid_data.csv` (Toronto 8,534 `(0,0)`); 2025 rate median 9.23/1k; `coordinate_anomalies.csv` = 2,754 coords. | all | transform log |
 | 2026-06-24 | **T13/F-17**: refactored `pipeline.py` into `TRANSFORM_STEPS` (in-memory) + `DERIVED_STEPS` (from disk); removed the fake `df`-threading; documented incidents-not-offences. Behaviour-preserving. | F-17 | `tests/test_pipeline.py` (33 passed) |
+| 2026-06-24 | **T12/F-15**: factored `_per_capita_table` (cumulative "Total" → "Total (cumulative)") into `analyze.py` sections 3 & 4. | F-15 | `tests/test_analyze_percapita.py` |
+| 2026-06-24 | **T12/F-14**: tests for census build, year partition, `verify_mappings`, standalone-compact — every non-network module now covered. | F-14 | `uv run pytest` → 39 passed |
 
 **Note for whoever continues:** the data products under `data/02_transformed/` were **regenerated green
 on 2026-06-23** with all fixes applied, so they are current. Re-run `uv run transform` after any future
@@ -524,7 +528,7 @@ _(append entries here as fixes land — include the test/command that proves eac
 ## 7. Fix ↔ test coverage matrix
 
 Every behaviour-changing fix shipped on this branch is locked by at least one unit test. Keep this
-table in sync when changing the corrected logic. (`uv run pytest` → **33 passed**.)
+table in sync when changing the corrected logic. (`uv run pytest` → **39 passed**.)
 
 | Fix | Behaviour locked | Test(s) |
 |-----|------------------|---------|
@@ -546,9 +550,13 @@ table in sync when changing the corrected logic. (`uv run pytest` → **33 passe
 | **F-07** epoch-ms date parsing | YTD/MCI/Peel dates parse correctly (guards the schema-dtype trap) | `test_unify_dates.py` (3 tests) |
 | (core) deduplication | multi-offence → `MULTIPLE` + concatenated; one row per id | `test_deduplicate_incidents.py` |
 | **F-17** two-phase orchestration | phase 1 threads + writes CSV; phase 2 builds derived; empty-abort | `test_pipeline.py` (2 tests) |
+| **F-15** per-capita "Total" | cumulative Total relabeled, not shown as annual | `test_analyze_percapita.py` |
+| (module) census build | boundaries ⋈ demographics; drop pop=0; centroids | `test_build_gta_census.py` |
+| (module) year partition | per-year folders; undated rows excluded | `test_partition_by_year.py` |
+| (module) verify_mappings | passes when mapped; raises on unmapped | `test_verify_mappings.py` |
+| (module) standalone compact | slim cols + rounded coords; arcs copied | `test_standalone_compact.py` |
 
-**Not unit-tested (by design):** F-18 / doc relabels (README/CLAUDE.md/docstring — no logic); pipeline
-wiring in `PIPELINE_STEPS` and the anomaly `threshold` default (config, exercised via real-data runs in
-§6, not asserted); the `hub.py`/`paginated.py` network wrappers (timeout/retry/`urlopen`) — only their
-pure helpers are unit-tested. The disk-read branches of `enrich`/`build_coordinate_anomalies` share
-logic with the tested `crime_df` path.
+**Not unit-tested (by design):** F-18 / doc relabels (no logic); the anomaly `threshold` default and the
+disk-read branches of `enrich`/`build_coordinate_anomalies` (share logic with the tested in-memory
+paths); and the `hub.py` / `census_data.py` network I/O wrappers (timeout/retry/`urlopen`/streaming) —
+`paginated.py`'s pure helpers are unit-tested.
