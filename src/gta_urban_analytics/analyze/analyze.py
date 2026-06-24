@@ -1,7 +1,12 @@
 """
-GTA Crime Data Analysis
-=======================
-Reads a crime occurrence CSV and produces per-year insights:
+York Region Crime Analysis (exploratory, York-only)
+===================================================
+NOTE: This tool consumes the RAW York Region CSV (York column names, York
+municipalities/populations, York-area anomaly locations). It does NOT read the
+unified multi-region dataset; cross-region analysis lives in the census
+enrichment + Kepler outputs. See docs/PIPELINE_AUDIT.md (F-18).
+
+Reads a York crime occurrence CSV and produces per-year insights:
   1. Total incidents by municipality
   2. Total incidents by municipality × crime type
   3. All of the above with anomaly locations removed (500m radius)
@@ -22,6 +27,7 @@ import math
 import argparse
 import pandas as pd
 import numpy as np
+from pyproj import Transformer
 
 # ---------------------------------------------------------------------------
 # CONFIG
@@ -88,6 +94,17 @@ PERSON_TYPES = {
 # ---------------------------------------------------------------------------
 # HELPERS
 # ---------------------------------------------------------------------------
+
+# Raw York x,y are EPSG:3857 (Web Mercator); the anomaly locations are UTM Zone
+# 17N (EPSG:26917). Incident coordinates MUST be reprojected before the metric
+# 500 m distance test, or nothing is ever flagged (audit F-02).
+_WM_TO_UTM17N = Transformer.from_crs("EPSG:3857", "EPSG:26917", always_xy=True)
+
+
+def webmercator_to_utm17n(x, y):
+    """Reproject Web Mercator (EPSG:3857) x,y to UTM Zone 17N (EPSG:26917)."""
+    return _WM_TO_UTM17N.transform(x, y)
+
 
 def euclidean_dist(x1, y1, x2, y2):
     return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
@@ -157,7 +174,17 @@ def main():
 
     # ── Mark anomaly-adjacent records ──────────────────────────────────────
     print("Flagging anomaly-adjacent incidents (500 m radius) …")
-    df["near_anomaly"] = df.apply(lambda r: is_near_anomaly(r["x"], r["y"]), axis=1)
+    # Reproject raw Web-Mercator x,y → UTM 17N so the 500 m anomaly test is valid (F-02).
+    coord_mask = df["x"].notna() & df["y"].notna()
+    df["x_utm"] = np.nan
+    df["y_utm"] = np.nan
+    if coord_mask.any():
+        ux, uy = webmercator_to_utm17n(
+            df.loc[coord_mask, "x"].to_numpy(), df.loc[coord_mask, "y"].to_numpy()
+        )
+        df.loc[coord_mask, "x_utm"] = ux
+        df.loc[coord_mask, "y_utm"] = uy
+    df["near_anomaly"] = df.apply(lambda r: is_near_anomaly(r["x_utm"], r["y_utm"]), axis=1)
     n_flagged = df["near_anomaly"].sum()
     print(f"  Flagged {n_flagged:,} incidents near anomaly locations")
 
