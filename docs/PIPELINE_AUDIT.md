@@ -239,7 +239,10 @@ dedup.)
   it to string makes `unit='ms'` produce `NaT`. Any fix must first reconcile schema dtypes with the
   epoch-ms parsing (parse before coercion, or type the epoch columns as Int).
 - **Fix:** Align schema dtypes with parse logic, then capture the validated frame.
-- **Status:** ⬜ (task T8)
+- **Status:** ✅ Resolved — fixed the real defect (`toronto_ytd_schema` epoch-ms columns were typed
+  `String`; now `Float`). Coercion is intentionally **not** captured: the pipeline hands off via CSV
+  (typeless), so capturing it has no downstream effect, and the per-region raw schemas are
+  validation-only by design. Date-parsing guard tests added. (`tests/test_unify_dates.py`)
 
 #### F-08 — Municipality names not normalised (case / abbreviations) + cross-region leakage
 - **Where:** per-region `municipality` in `unify_datasets.py`; grouped in `analyze.py` and
@@ -274,7 +277,10 @@ dedup.)
   UTC (so dates are usually right), but it's unverified/undocumented; near-midnight rows could shift a
   day and land in the wrong yearly partition.
 - **Fix:** Cross-check epoch vs the human `OccurrenceDate`/`Time` columns, parse explicitly, document.
-- **Status:** ⬜ (task T10)
+- **Status:** ✅ Verified-OK — investigated: the epoch-ms fields encode **local time stored as naive
+  UTC**, so `to_datetime(unit='ms')` yields the correct local date. Peel: **0.00%** mismatch vs its
+  human date column; Toronto YTD clusters at 04:00/05:00 UTC (= local midnight across the DST
+  boundary). No shift; no parse change needed.
 
 #### F-11 — Shooting-arc detection checks `mapped == "Weapons"` (a category that never exists)
 - **Where:** `transform/crime/build_shooting_arcs.py:98-99`.
@@ -451,12 +457,12 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
 - [x] **T6 · Fix shooting-arc weapons match** (F-11). `mapped == "Weapons Offences"`. *Done — see §6.*
 - [x] **T7 · Normalise municipality names** (F-08). Done — alias map (Durham codes + Peel spellings) +
       Title-case in `unify`; aggregate by true municipality, `region` stays a separate dimension. *See §6.*
-- [ ] **T8 · Capture Pandera coercion — carefully** (F-07). First align schema dtypes with epoch-ms
-      parsing (else YTD dates → NaT), then capture the validated frame.
+- [x] **T8 · Pandera coercion / schema dtypes** (F-07). Done — fixed `toronto_ytd` epoch-ms dtype;
+      coercion-capture intentionally skipped (moot under CSV handoff). *See §6.*
 
 ### P2 — robustness, hygiene, docs
 - [x] **T9 · Harden downloads** (F-12). Done — timeouts + retries; empty-page break; union headers. *See §6.*
-- [ ] **T10 · Verify epoch-ms timezone semantics** (F-10). cross-check + document.
+- [x] **T10 · Epoch-ms timezone semantics** (F-10). Done — verified local-as-UTC; no date shift. *See §6.*
 - [x] **T11 · Reconcile documentation** (F-13). Done — README + CLAUDE.md + DataSets.md. *See §6.*
 - [ ] **T12 · Expand tests + nits** (F-14, F-15). dedup/date/filter tests; remove unused `shutil`;
       `NaT` on bad Durham month; strip Halton original; relabel analyze "Total" rate column.
@@ -469,8 +475,8 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
       layer to render it (+ optional per-year/standalone copies, and a tuned threshold). *See §6.*
 
 ### Suggested order
-Done: T1-T7, T9, T11, T14, T15. **Remaining:** T8 (Pandera coercion — careful) · T10 (tz) ·
-T12 (analyze "Total" + broader tests) · T13 (data-flow) · wire the F-19 anomaly layer into the Kepler viz.
+Done: T1-T11, T14, T15. **Remaining:** T12 (analyze "Total" cosmetic + broader tests) · T13 (data-flow
+clarity) · wire the F-19 anomaly layer into the Kepler viz.
 
 ---
 
@@ -497,6 +503,9 @@ T12 (analyze "Total" + broader tests) · T13 (data-flow) · wire the F-19 anomal
 | 2026-06-23 | **T9/F-12**: download hardening — timeouts + bounded retries (`hub.py`, `paginated.py`, `census_data.py`); pagination breaks on empty page; CSV headers union all feature keys. | F-12 | `tests/test_paginated.py` |
 | 2026-06-23 | **T11/F-13**: reconciled `docs/DataSets.md` (real commands, `data/01_raw/` output, FeatureServer note). | F-13 | docs |
 | 2026-06-23 | Full suite green: 27 passed. | all | `uv run pytest` |
+| 2026-06-23 | **T8/F-07**: typed `toronto_ytd` epoch-ms columns `Float` (were `String`); coercion-capture intentionally skipped (CSV handoff makes it moot). Added date-parsing guards. | F-07 | `tests/test_unify_dates.py` |
+| 2026-06-23 | **T10/F-10**: investigated epoch-ms tz — local-time-as-UTC, so dates are correct (Peel 0.00% mismatch; Toronto YTD = local midnight). No change needed. | F-10 | real-data check |
+| 2026-06-23 | Full suite green: 30 passed. | all | `uv run pytest` |
 
 **Note for whoever continues:** the data products under `data/02_transformed/` are stale w.r.t. these
 fixes. Regenerate with `uv run transform` (downloads must already be present) so `unified_data.csv`,
@@ -510,7 +519,7 @@ _(append entries here as fixes land — include the test/command that proves eac
 ## 7. Fix ↔ test coverage matrix
 
 Every behaviour-changing fix shipped on this branch is locked by at least one unit test. Keep this
-table in sync when changing the corrected logic. (`uv run pytest` → **27 passed**.)
+table in sync when changing the corrected logic. (`uv run pytest` → **30 passed**.)
 
 | Fix | Behaviour locked | Test(s) |
 |-----|------------------|---------|
@@ -529,6 +538,7 @@ table in sync when changing the corrected logic. (`uv run pytest` → **27 passe
 | **F-05/F-06** stale-snapshot dropping | newest `*_to_<date>.csv` per source kept | `test_snapshot_selection.py` (3 tests) |
 | **F-15** Durham bad month → NaT | unrecognised month → NaT, not January | `test_durham_mapping.py::test_unify_durham_bad_month_yields_nat` |
 | **F-12** paginated downloader | stops on empty page; CSV headers union all feature keys | `test_paginated.py` (5 tests) |
+| **F-07** epoch-ms date parsing | YTD/MCI/Peel dates parse correctly (guards the schema-dtype trap) | `test_unify_dates.py` (3 tests) |
 
 **Not unit-tested (by design):** F-18 / doc relabels (README/CLAUDE.md/docstring — no logic); pipeline
 wiring in `PIPELINE_STEPS` and the anomaly `threshold` default (config, exercised via real-data runs in
