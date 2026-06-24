@@ -64,3 +64,64 @@ def test_unify_durham_emits_canonical_category(mock_read_csv, mock_glob, mock_ex
     assert {"Assaults", "Break and Enter", "Theft Over 5000", "Drug Violations"}.isdisjoint(
         set(df["mapped_crime_category"])
     )
+
+
+@mock.patch("gta_urban_analytics.transform.crime.unify_datasets.os.path.exists")
+@mock.patch("gta_urban_analytics.transform.crime.unify_datasets.glob.glob")
+@mock.patch("gta_urban_analytics.transform.crime.unify_datasets.pd.read_csv")
+def test_unify_durham_shootings_file_without_offence_column(mock_read_csv, mock_glob, mock_exists):
+    """F-01c: the shootings file has no 'offence' column, so original_crime_type
+    falls back to the file category — which must still map canonically."""
+    mock_exists.return_value = False
+    mock_glob.side_effect = lambda path: (
+        ["/fake/data/01_raw/Durham_Shootings_and_Firearm_Discharge.csv"] if "Durham_" in path else []
+    )
+
+    def read_side_effect(filename, **kwargs):
+        if "Durham_Shootings_and_Firearm_Discharge" in filename:
+            return pd.DataFrame(
+                {
+                    "event_unique_id": ["GO-9"],  # NOTE: no 'offence' column
+                    "report_year": [2025],
+                    "lat": [43.85], "lon": [-79.05], "municipality": ["PIC"],
+                }
+            )
+        return pd.DataFrame()
+
+    mock_read_csv.side_effect = read_side_effect
+
+    df = unify_datasets()
+    durham = df[df["region"] == "Durham"].reset_index(drop=True)
+    assert list(durham["original_crime_type"]) == ["Shootings and Firearm Discharge"]
+    assert list(durham["mapped_crime_category"]) == ["Weapons Offences"]
+
+
+@mock.patch("gta_urban_analytics.transform.crime.unify_datasets.os.path.exists")
+@mock.patch("gta_urban_analytics.transform.crime.unify_datasets.glob.glob")
+@mock.patch("gta_urban_analytics.transform.crime.unify_datasets.pd.read_csv")
+def test_unify_durham_unmapped_offence_falls_back_to_canonical(mock_read_csv, mock_glob, mock_exists):
+    """F-01b: an offence absent from the JSON maps to 'Other', which must fall back
+    to the canonicalised file category — never leaving a non-canonical/'Other' label."""
+    mock_exists.return_value = False
+    mock_glob.side_effect = lambda path: (
+        ["/fake/data/01_raw/Durham_Assaults.csv"] if "Durham_" in path else []
+    )
+
+    def read_side_effect(filename, **kwargs):
+        if "Durham_Assaults" in filename:
+            return pd.DataFrame(
+                {
+                    "event_unique_id": ["GO-1"],
+                    "offence": ["Made Up Offence XYZ"],  # not in crime_category_mappings.json
+                    "occurrence_year": [2025], "occurrence_month": ["Jan"], "occurrence_day": [1],
+                    "lat": [43.85], "lon": [-79.05], "municipality": ["AJA"],
+                }
+            )
+        return pd.DataFrame()
+
+    mock_read_csv.side_effect = read_side_effect
+
+    df = unify_datasets()
+    durham = df[df["region"] == "Durham"].reset_index(drop=True)
+    assert list(durham["mapped_crime_category"]) == ["Assault"]  # fallback for the "Assaults" file
+    assert "Other" not in set(df["mapped_crime_category"])
