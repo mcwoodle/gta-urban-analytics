@@ -126,6 +126,16 @@ def per_1k(count, pop):
     return round(count / pop * 1000, 2)
 
 
+def _per_capita_table(pivot):
+    """Convert a counts pivot (year columns + 'Total') to incidents per 1,000
+    residents. The 'Total' column becomes a cumulative multi-year rate, so it is
+    renamed to 'Total (cumulative)' to avoid being read as an annual rate (F-15)."""
+    rates = pivot.copy()
+    for col in rates.columns:
+        rates[col] = rates.apply(lambda r: per_1k(r[col], POPULATION.get(r.name, 0)), axis=1)
+    return rates.rename(columns={"Total": "Total (cumulative)"})
+
+
 def save(df, name):
     path = os.path.join(RESULTS_DIR, f"{name}.csv")  # type: ignore[arg-type]
     df.to_csv(path)
@@ -222,11 +232,7 @@ def main():
 
         # 3 ─ Per-Capita Rates
         print("\n── 3. Incidents per 1,000 Residents ──")
-        t3 = t1_pivot.copy()
-        for col in t3.columns:
-            t3[col] = t3.apply(
-                lambda r: per_1k(r[col], POPULATION.get(r.name, 0)), axis=1
-            )
+        t3 = _per_capita_table(t1_pivot)
         print(t3.to_string())
         save(t3, f"{tag}_3_per_capita_rate")
 
@@ -237,12 +243,8 @@ def main():
         t4_pivot = t4.pivot_table(index="Municipality", columns="Year",
                                   values="Violent", fill_value=0, aggfunc="sum")
         t4_pivot["Total"] = t4_pivot.sum(axis=1)
-        t4_rate = t4_pivot.copy()
-        for col in t4_rate.columns:
-            t4_rate[col] = t4_rate.apply(
-                lambda r: per_1k(r[col], POPULATION.get(r.name, 0)), axis=1
-            )
-        print(t4_rate.sort_values("Total", ascending=False).to_string())
+        t4_rate = _per_capita_table(t4_pivot)
+        print(t4_rate.sort_values("Total (cumulative)", ascending=False).to_string())
         save(t4_pivot, f"{tag}_4a_violent_crime_counts")
         save(t4_rate, f"{tag}_4b_violent_crime_per_1k")
 
