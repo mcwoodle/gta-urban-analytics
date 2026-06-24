@@ -328,9 +328,8 @@ dedup.)
 - **Where:** `tests/test_unify_datasets.py` was the only test (source_identifier prefixing; its
   `Toronto_Major_Crime` mock branch is dead — glob mocked to `[]`). No tests for CRS reprojection,
   dates, dedup, mapping, filtering, census, analyze.
-- **Status:** 🟡 Every logic correction shipped this session now has ≥1 unit test (16 tests; see the
-  §7 coverage matrix). Broader coverage of un-changed code (dedup, date parsing, census build,
-  downloads) is still open (T12).
+- **Status:** 🟡 Every logic correction has ≥1 test (31 tests; §7 matrix); dedup, date parsing, and the
+  download helpers are now covered too. Remaining untested: census build + year partitioning (T12).
 
 #### F-15 — Minor correctness/cleanliness nits
 - `partition_by_year.py:25` imports `shutil` (unused).
@@ -506,6 +505,7 @@ clarity) · wire the F-19 anomaly layer into the Kepler viz.
 | 2026-06-23 | **T8/F-07**: typed `toronto_ytd` epoch-ms columns `Float` (were `String`); coercion-capture intentionally skipped (CSV handoff makes it moot). Added date-parsing guards. | F-07 | `tests/test_unify_dates.py` |
 | 2026-06-23 | **T10/F-10**: investigated epoch-ms tz — local-time-as-UTC, so dates are correct (Peel 0.00% mismatch; Toronto YTD = local midnight). No change needed. | F-10 | real-data check |
 | 2026-06-23 | Full suite green: 30 passed. | all | `uv run pytest` |
+| 2026-06-23 | Added `deduplicate_incidents` test (multi-offence MULTIPLE/concatenation) — closes a core F-14 gap. | F-14 | `tests/test_deduplicate_incidents.py` (31 passed) |
 
 **Note for whoever continues:** the data products under `data/02_transformed/` are stale w.r.t. these
 fixes. Regenerate with `uv run transform` (downloads must already be present) so `unified_data.csv`,
@@ -519,7 +519,7 @@ _(append entries here as fixes land — include the test/command that proves eac
 ## 7. Fix ↔ test coverage matrix
 
 Every behaviour-changing fix shipped on this branch is locked by at least one unit test. Keep this
-table in sync when changing the corrected logic. (`uv run pytest` → **30 passed**.)
+table in sync when changing the corrected logic. (`uv run pytest` → **31 passed**.)
 
 | Fix | Behaviour locked | Test(s) |
 |-----|------------------|---------|
@@ -539,6 +539,7 @@ table in sync when changing the corrected logic. (`uv run pytest` → **30 passe
 | **F-15** Durham bad month → NaT | unrecognised month → NaT, not January | `test_durham_mapping.py::test_unify_durham_bad_month_yields_nat` |
 | **F-12** paginated downloader | stops on empty page; CSV headers union all feature keys | `test_paginated.py` (5 tests) |
 | **F-07** epoch-ms date parsing | YTD/MCI/Peel dates parse correctly (guards the schema-dtype trap) | `test_unify_dates.py` (3 tests) |
+| (core) deduplication | multi-offence → `MULTIPLE` + concatenated; one row per id | `test_deduplicate_incidents.py` |
 
 **Not unit-tested (by design):** F-18 / doc relabels (README/CLAUDE.md/docstring — no logic); pipeline
 wiring in `PIPELINE_STEPS` and the anomaly `threshold` default (config, exercised via real-data runs in
