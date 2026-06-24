@@ -183,7 +183,8 @@ dedup.)
   so it isn't firing — but it's a latent foot-gun.
 - **Fix:** Stable filenames (overwrite) or select only the newest snapshot per pattern in `unify`;
   warn on multiples.
-- **Status:** ⬜ (task T3)
+- **Status:** ✅ Fixed — `_drop_stale_snapshots` keeps only the newest `*_to_<date>.csv` per source in
+  `unify` and warns on extras. (`tests/test_snapshot_selection.py`)
 
 #### F-06 — Overlapping feeds rely on exact ID match for dedup (currently OK, fragile)
 - **Where:** feeds in `extract/toronto.py`, `extract/york.py`; dedup `deduplicate_incidents.py:20`.
@@ -197,7 +198,10 @@ dedup.)
   of the 8,958 shared events, so any YTD corrections to those are dropped (freshness nuance).
 - **Fix:** Add a secondary near-duplicate guard (e.g. dedup on `(region, occurrence_date, lat, lon,
   original_crime_type)`), and correct the misleading `toronto.py` comment.
-- **Status:** ⬜ (task T3, lower urgency)
+- **Status:** ✅ Addressed — stale-snapshot loading removed (F-05); the misleading `toronto.py`
+  comment is corrected; the existing `source_identifier` dedup already collapses the MCI↔YTD overlap
+  (§4.3), so no coordinate-based secondary key was added (F-19 showed that would delete real snapped
+  incidents).
 
 #### F-19 — Low-precision / placeholder coordinates pile many distinct incidents on one point
 - **Where:** source geocoding; surfaces in `unified_data.csv` and every spatial output.
@@ -250,7 +254,9 @@ dedup.)
   `AJA` as unjoinable to any name/population table; shooting-arc centroids split per label.
 - **Fix:** Normalisation map (strip → title-case → expand Durham codes to full names). Decide whether
   to keep cross-region rows under their true municipality or scope to home region.
-- **Status:** ⬜ (task T7)
+- **Status:** ✅ Fixed — `_normalize_municipality` (alias map for Durham codes + Peel no-space
+  spellings, else Title-case) applied in `unify`. Real data: 30 clean municipalities, 0 codes/UPPER
+  labels left, cross-region spellings merged. (`tests/test_municipality_normalization.py`)
 
 #### F-09 — `verify_mappings` hard-couples Durham offence text to the JSON  ✅ resolved by T1
 - **Where:** `transform/crime/verify_mappings.py:23-52` (pipeline step 2).
@@ -325,7 +331,9 @@ dedup.)
 - `unify_datasets.py` Durham month map: unrecognised month silently `fillna('01')` → wrong month vs
   `NaT`.
 - Halton `original_crime_type` keeps leading whitespace (`" MVC - HIT & RUN"`).
-- **Status:** ⬜ (task T12)
+- **Status:** 🟡 Done: removed unused `shutil`; Durham bad month → `NaT`; `original_crime_type`
+  stripped globally (real data: 0 whitespace-padded values left). Remaining: the `analyze.py` "Total"
+  rate-column cosmetic (T12).
 
 #### F-16 — Generated-artifact tracking  ✅ verified OK
 - **Checked:** `git ls-files data/` → 0 tracked; `visualize-kepler-map/dist/` is gitignored. No large
@@ -431,17 +439,16 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
       JSON; canonicalised file-category fallback. *Done — see §6.*
 - [x] **T2 · Reject null-island / out-of-bounds coordinates** (F-03). GTA-bbox + `(0,0)` check; null
       offending coords in `unify` so the filter quarantines them. *Done — see §6.*
-- [ ] **T3 · Fix snapshot globbing / feed overlap** (F-05, F-06). Newest-snapshot-only selection (or
-      stable filenames) + warn on multiples; fix the wrong `toronto.py` "end of previous year" comment;
-      consider a secondary dedup key.
+- [x] **T3 · Fix snapshot globbing / feed overlap** (F-05, F-06). Done — newest-snapshot-only + warn;
+      `toronto.py` overlap comment fixed; no coordinate dedup key (F-19 showed it would delete data). *See §6.*
 - [x] **T4 · Per-DA rate definition** (F-04). Done — **Option C**: headline rate over reference year
       2025 (`REFERENCE_YEAR`); per-year folders keep trends. *See §6.*
 
 ### P1 — secondary-output correctness
 - [x] **T5 · Fix `analyze.py` anomaly CRS** (F-02). Done — reprojects 3857→26917 before the test. *See §6.*
 - [x] **T6 · Fix shooting-arc weapons match** (F-11). `mapped == "Weapons Offences"`. *Done — see §6.*
-- [ ] **T7 · Normalise municipality names** (F-08). strip→title-case + Durham code expansion; decide
-      cross-region handling; test `AJA`→`Ajax`, `BURLINGTON`→`Burlington`.
+- [x] **T7 · Normalise municipality names** (F-08). Done — alias map (Durham codes + Peel spellings) +
+      Title-case in `unify`; aggregate by true municipality, `region` stays a separate dimension. *See §6.*
 - [ ] **T8 · Capture Pandera coercion — carefully** (F-07). First align schema dtypes with epoch-ms
       parsing (else YTD dates → NaT), then capture the validated frame.
 
@@ -461,8 +468,9 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
       layer to render it (+ optional per-year/standalone copies, and a tuned threshold). *See §6.*
 
 ### Suggested order
-Done: T1 T2 T6 T5 T14 T4 T15. **Remaining:** T7 → T8 → T3 → T9-T13 (+ wire the F-19 anomaly layer
-into the Kepler viz).
+Done: T1 T2 T3 T4 T5 T6 T7 T14 T15. **Remaining:** T8 (careful) · T9 (downloads) · T10 (tz) ·
+T11 (DataSets.md) · T12 (analyze "Total" + broader tests) · T13 (data-flow) · wire the F-19 anomaly
+layer into the Kepler viz.
 
 ---
 
@@ -482,6 +490,10 @@ into the Kepler viz).
 | 2026-06-23 | **T15/F-19**: new `build_coordinate_anomalies.py` + pipeline step → `coordinate_anomalies.csv` (separate layer; data intact). Real data: 2,755 coords ≥50 (43.5%). | F-19 | `tests/test_coordinate_anomalies.py` |
 | 2026-06-23 | Full suite green: 12 passed. | all | `uv run pytest` |
 | 2026-06-23 | **Test-coverage pass**: cross-referenced every logic fix to a test; added 4 tests for previously untested branches (F-01b fallback, F-01c no-offence file, F-03 unify-integration + filter quarantine). Added §7 matrix. | F-01, F-03, F-14 | `uv run pytest` → 16 passed |
+| 2026-06-23 | **T7/F-08**: `_normalize_municipality` (Durham code/Peel-spelling aliases + Title-case) in `unify`. Real data: 30 clean municipalities, 0 codes/UPPER, cross-region merged. | F-08 | `tests/test_municipality_normalization.py` |
+| 2026-06-23 | **T3/F-05+F-06**: `_drop_stale_snapshots` (newest `*_to_<date>.csv` per source) in `unify`; fixed `toronto.py` overlap comment. | F-05, F-06 | `tests/test_snapshot_selection.py` |
+| 2026-06-23 | **F-15 nits**: removed unused `shutil`; Durham bad month → NaT; stripped `original_crime_type` (real data: 0 left). | F-15 | `tests/test_durham_mapping.py`, `tests/test_municipality_normalization.py` |
+| 2026-06-23 | Full suite green: 22 passed. | all | `uv run pytest` |
 
 **Note for whoever continues:** the data products under `data/02_transformed/` are stale w.r.t. these
 fixes. Regenerate with `uv run transform` (downloads must already be present) so `unified_data.csv`,
@@ -495,7 +507,7 @@ _(append entries here as fixes land — include the test/command that proves eac
 ## 7. Fix ↔ test coverage matrix
 
 Every behaviour-changing fix shipped on this branch is locked by at least one unit test. Keep this
-table in sync when changing the corrected logic. (`uv run pytest` → **16 passed**.)
+table in sync when changing the corrected logic. (`uv run pytest` → **22 passed**.)
 
 | Fix | Behaviour locked | Test(s) |
 |-----|------------------|---------|
@@ -510,6 +522,9 @@ table in sync when changing the corrected logic. (`uv run pytest` → **16 passe
 | **F-04** reference-year filter | rate counts only the reference year | `test_reference_year_rate.py` (2 tests) |
 | **F-19** anomaly detection | coords ≥ threshold flagged; empty case handled | `test_coordinate_anomalies.py` (2 tests) |
 | (pre-existing) source_identifier region prefix | no cross-region ID collision | `test_unify_datasets.py::test_unify_datasets_prevents_source_identifier_collisions` |
+| **F-08** municipality normalization | codes/casing/no-space → one Title-case label; original stripped | `test_municipality_normalization.py` (2 tests) |
+| **F-05/F-06** stale-snapshot dropping | newest `*_to_<date>.csv` per source kept | `test_snapshot_selection.py` (3 tests) |
+| **F-15** Durham bad month → NaT | unrecognised month → NaT, not January | `test_durham_mapping.py::test_unify_durham_bad_month_yields_nat` |
 
 **Not unit-tested (by design):** F-18 / doc relabels (README/CLAUDE.md/docstring — no logic); pipeline
 wiring in `PIPELINE_STEPS` and the anomaly `threshold` default (config, exercised via real-data runs in
