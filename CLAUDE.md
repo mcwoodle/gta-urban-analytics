@@ -55,10 +55,10 @@ Three sequential stages in `pipeline.py`:
 Pandera schemas for each region's raw format (`toronto_schema`, `york_schema`, etc.) and the final `unified_schema`. All use `coerce=True`. Key unified columns: `source_file_name`, `source_identifier`, `region`, `original_crime_type`, `mapped_crime_category`, `occurrence_date` (YYYY-MM-DD), `lat`/`lon`, `municipality`.
 
 ### Analyze (`src/gta_urban_analytics/analyze/analyze.py`)
-Per-municipality statistics including crime rate per 1,000 residents (from 2021 census populations). Produces both unfiltered and anomaly-filtered results. Anomaly filtering excludes incidents within 500 m (in UTM Zone 17N) of known high-traffic locations: shopping malls (Vaughan Mills, Pacific Mall, etc.), Canada's Wonderland, hospitals, and GO Transit stations.
+**York-Region-only exploratory tool** — reads the RAW York CSV (York columns/municipalities/populations), not the unified dataset. Produces per-municipality statistics including crime rate per 1,000 residents (2021 census). Anomaly filtering excludes incidents within 500 m of known high-traffic locations (shopping malls, Canada's Wonderland, hospitals, GO stations); incident coordinates are reprojected from EPSG:3857 to UTM 17N before the distance test (audit F-02). Cross-region quantitative output comes from the census enrichment (`transform/census/enrich_with_crime_rate.py`), whose headline `crime_rate_per_1k` is computed over a single reference year (2025) for comparability (audit F-04).
 
 ### Crime Category Mapping
-`transform/crime/crime_category_mappings.json` contains ~357 entries mapping raw police descriptions to standardized categories (Assault, Auto Theft, Break & Enter, Drug Violations, Robbery, Theft, Sexual Assault, Homicide, Mischief, Weapons, Fraud, Other, MULTIPLE, etc.).
+`transform/crime/crime_category_mappings.json` contains 364 entries mapping raw police descriptions to one of **15 canonical categories**: Assault, Auto Theft, Break & Enter, Theft, Robbery, Drug Offences, Weapons Offences, Sexual Offences, Homicide, Property Damage, Public Order, Fraud, Impaired Driving & Traffic, Threats & Harassment, Missing Person. (Plus runtime-only `Other` for unmapped values and `MULTIPLE` for multi-offence incidents.) All five regions map via this file — including Durham, which maps its offence text here rather than using filename labels (audit F-01).
 
 ## Data Directories
 

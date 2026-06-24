@@ -46,10 +46,10 @@ You can also run each stage separately:
 ```bash
 uv run download        # Download all raw CSVs into data/01_raw/
 uv run transform       # Unify → filter → deduplicate crime data + build census GeoJSON
-uv run analyze -i data/01_raw/<your_downloaded_file>.csv
+uv run analyze -i data/01_raw/York_2025_to_<date>.csv   # York Region only — see note
 
 ```
-*(Note: If you encounter Windows file encoding errors, append `--encoding cp1252` to the analyze command.)*
+*(Note: `analyze` is a **York-Region-only** exploratory tool — it reads the raw York CSV, not the unified dataset. Cross-region analysis comes from the census enrichment produced by `transform`. If you encounter Windows file encoding errors, append `--encoding cp1252`.)*
 
 ### Generated Analysis Results
 Results are saved to `data/03_analysis/results_<filename>/`, including:

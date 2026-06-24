@@ -57,6 +57,11 @@ Plus medium/low robustness, normalization, test-coverage, and documentation-drif
 out-of-bounds coordinates; the crime-mapping JSON has **100% coverage** of post-filter offence text
 (0 `"Other"` rows); no large data/build artifacts are tracked in git.
 
+**Owner decisions (2026-06-23):** F-04 → **Option C** (headline rate over reference year 2025; per-year
+folders keep trends). F-18 → **Option B** (`analyze.py` relabeled York-only + CRS fixed; the census
+enrichment is the cross-region analytic). F-19 → **keep data intact + a separate anomaly layer**
+(`coordinate_anomalies.csv`). All three implemented this session — see §3 statuses and §6.
+
 ---
 
 ## 2. As-built pipeline map
@@ -133,7 +138,8 @@ dedup.)
   in 4326 and use geodesic distance). Regression-test a known near-mall point.
 - **Note:** `analyze.py` is **not** in the main pipeline (`full_pipeline` runs download+transform;
   `analyze()` is commented out at `main.py:18`) and is York-raw-only — see F-18.
-- **Status:** ⬜ (task T5)
+- **Status:** ✅ Fixed — reprojects raw 3857 `x,y` → UTM 17N before the 500 m test
+  (`tests/test_analyze_anomaly_crs.py`).
 
 #### F-03 — Null-island `(0,0)` coordinates pass validation and pollute outputs
 - **Where:** `schemas.py:17-18` (lat/lon `nullable=False`, **no range check**); Toronto
@@ -163,7 +169,9 @@ dedup.)
 - **Fix (owner decision):** (a) annualise (÷ distinct contributing years), (b) fixed common window
   (e.g. trailing 12 months or one reference year), or (c) surface per-year rates only. Document the
   definition in README + tooltip.
-- **Status:** 🔎 (task T4)
+- **Status:** ✅ **Decision: Option C.** Headline rate now computed over reference year **2025**
+  (`REFERENCE_YEAR` in `enrich_with_crime_rate.py`); per-year folders unchanged. 2025 has all 5 regions
+  (127,017 pts). (`tests/test_reference_year_rate.py`)
 
 #### F-05 — Date-stamped snapshot files are glob-concatenated → duplication risk
 - **Where:** `extract/york.py:24`, `extract/toronto.py:27` (date-stamped names);
@@ -191,18 +199,29 @@ dedup.)
   original_crime_type)`), and correct the misleading `toronto.py` comment.
 - **Status:** ⬜ (task T3, lower urgency)
 
-#### F-19 — 42,489 exact-tuple duplicate incidents survive dedup (differ only by ID)
-- **Where:** data characteristic surfaced via `unified_data.csv`; dedup keys only on
-  `source_identifier`.
-- **What:** **42,489 rows (5.25%)** share an identical `(region, lat, lon, occurrence_date,
-  original_crime_type)` tuple with another row but have distinct `source_identifier`. Concentrated in
-  **Halton 21.75%** and **York 9.38%** (Peel 5.25%, Durham 2.70%, Toronto 2.34%).
-- **Impact:** Either genuine re-published duplicates (over-counting) or an artifact of
-  coordinate-snapping (e.g. Halton geocoding many incidents to a block/centroid). Halton at ~22% is
-  high enough to warrant investigation before trusting Halton counts/rates.
-- **Fix:** Investigate (are duplicate tuples same incident re-published, or distinct events at a
-  snapped coordinate?). If re-publish, add the secondary dedup key from F-06.
-- **Status:** 🔎 (task T15)
+#### F-19 — Low-precision / placeholder coordinates pile many distinct incidents on one point
+- **Where:** source geocoding; surfaces in `unified_data.csv` and every spatial output.
+- **What (investigated 2026-06-23):** What first looked like duplicate tuples is **not** re-publish
+  duplication — the rows are *distinct* incidents (distinct `source_identifier`) snapped to a shared
+  coordinate. Geocoding is coarse: York has 14,740 distinct coords for 243,062 rows; **one York
+  coordinate carries 4,981 incidents**; 2,149 York coords hold >20 each. Examples: 29 distinct Markham
+  incidents at one identical lat/lon on one day/type; "ROADSIDE TEST" incidents pile onto checkpoint
+  coordinates. Halton: 3,899 distinct coords for 20,260 rows (max 487 at one point); Peel is finer
+  (36,069 coords for 82,367 rows).
+- **Impact:** Counts are CORRECT (real distinct incidents) — do **not** dedup these or you delete real
+  data. The damage is spatial: the Kepler point/hexbin layer shows artificial hotspots at placeholder
+  points, and the per-DA crime rate piles incidents onto whatever DA holds the placeholder centroid
+  (often not where the crime occurred). (F-03 already removed Toronto's biggest pile — the 7,560 at
+  `(0,0)`.)
+- **Fix (owner decision):** Detect placeholder/low-precision coords (e.g. >N incidents at one identical
+  full-precision point, or coords matching municipal centroids) and flag them: keep in counts,
+  exclude/down-weight in the per-DA rate and/or the point hotspot layer. Do NOT add a coordinate-based
+  dedup key. Relates to F-02 (real vs artificial hotspots) and F-04.
+- **Status:** ✅ **Decision: keep data intact + separate anomaly layer.** New
+  `build_coordinate_anomalies.py` (pipeline step) writes `coordinate_anomalies.csv` — coordinates with
+  ≥50 incidents (real data: **2,755 coords / 351,762 incidents / 43.5%**; threshold is a tunable module
+  constant). Incidents stay in all counts/rates. Remaining: wire the Kepler layer to render it, and
+  (optionally) emit per-year/standalone copies. (`tests/test_coordinate_anomalies.py`)
 
 ### 🟠 Medium severity
 
@@ -288,7 +307,8 @@ dedup.)
   Mischief`; the JSON uses `Drug Offences / Weapons Offences / Sexual Offences / Property Damage`);
   `docs/DataSets.md` (non-existent scripts like `download_durham_data.py`, stale `dataSetDownloads/`
   paths, a Halton GIS id that no longer matches the FeatureServer URL the code uses).
-- **Status:** ⬜ (task T11)
+- **Status:** 🟡 README + CLAUDE.md `analyze`/category text corrected this session; `docs/DataSets.md`
+  staleness (script names, Halton id) remains (T11).
 
 #### F-14 — Thin test coverage
 - **Where:** `tests/test_unify_datasets.py` was the only test (source_identifier prefixing; its
@@ -318,7 +338,9 @@ dedup.)
   `unified_data.csv` or analyse the other four regions.
 - **Fix (decision):** retarget to the unified schema + full GTA population table, or relabel it as a
   York exploratory tool and build a unified analyzer.
-- **Status:** 🔎 (task T14)
+- **Status:** ✅ **Decision: Option B.** `analyze.py` relabeled York-only (docstring + README +
+  CLAUDE.md) and its CRS bug fixed (F-02). A unified cross-region analyzer remains an optional future
+  module.
 
 ---
 
@@ -410,12 +432,11 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
 - [ ] **T3 · Fix snapshot globbing / feed overlap** (F-05, F-06). Newest-snapshot-only selection (or
       stable filenames) + warn on multiples; fix the wrong `toronto.py` "end of previous year" comment;
       consider a secondary dedup key.
-- [ ] **T4 · Decide & implement the per-DA rate definition** (F-04) 🔎. annualised / fixed-window /
-      per-year-only; implement; document.
+- [x] **T4 · Per-DA rate definition** (F-04). Done — **Option C**: headline rate over reference year
+      2025 (`REFERENCE_YEAR`); per-year folders keep trends. *See §6.*
 
 ### P1 — secondary-output correctness
-- [ ] **T5 · Fix `analyze.py` anomaly CRS** (F-02). Reproject `x,y` 3857→26917 before the 500 m test;
-      regression-test a near-mall point.
+- [x] **T5 · Fix `analyze.py` anomaly CRS** (F-02). Done — reprojects 3857→26917 before the test. *See §6.*
 - [x] **T6 · Fix shooting-arc weapons match** (F-11). `mapped == "Weapons Offences"`. *Done — see §6.*
 - [ ] **T7 · Normalise municipality names** (F-08). strip→title-case + Durham code expansion; decide
       cross-region handling; test `AJA`→`Ajax`, `BURLINGTON`→`Burlington`.
@@ -431,12 +452,15 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
       `NaT` on bad Durham month; strip Halton original; relabel analyze "Total" rate column.
 - [ ] **T13 · Pipeline data-flow clarity** (F-17). honest threading or explicit write-then-read;
       document incidents-vs-offences.
-- [ ] **T14 · Decide `analyze.py` future** (F-18) 🔎. retarget to unified schema or relabel.
-- [ ] **T15 · Investigate 42,489 exact-tuple duplicates** (F-19). re-publish vs coordinate-snapping;
-      start with Halton (21.75%). If re-publish, add secondary dedup key (ties to T3).
+- [x] **T14 · `analyze.py` future** (F-18). Done — **Option B**: relabel York-only + fix CRS. A unified
+      cross-region analyzer is an optional future module. *See §6.*
+- [x] **T15 · Placeholder-coordinate anomaly layer** (F-19). Done — **keep data intact** + new
+      `coordinate_anomalies.csv` layer (coords ≥50 incidents). Remaining follow-up: wire the Kepler
+      layer to render it (+ optional per-year/standalone copies, and a tuned threshold). *See §6.*
 
 ### Suggested order
-T1✅ → T6✅ → T2✅ → T5 → T7 → T8 → T3 → T15 → T4 → T9-T14.
+Done: T1 T2 T6 T5 T14 T4 T15. **Remaining:** T7 → T8 → T3 → T9-T13 (+ wire the F-19 anomaly layer
+into the Kepler viz).
 
 ---
 
@@ -450,6 +474,11 @@ T1✅ → T6✅ → T2✅ → T5 → T7 → T8 → T3 → T15 → T4 → T9-T14.
 | 2026-06-23 | **T2**: `_null_out_of_bounds_coords` nulls (0,0)/out-of-GTA coords in `unify` → quarantined by filter. | F-03 | `tests/test_coordinate_validation.py` |
 | 2026-06-23 | Real-data verification of `unify` (880,241 pre-dedup rows): non-canonical labels = `[]`; 8,534 Toronto null coords nulled. | T1, T2 | `uv run python` on `unify_datasets()` |
 | 2026-06-23 | Full suite green (`uv run pytest`): 5 passed. | T1, T2, T6 | CI/pytest |
+| 2026-06-23 | **T5/F-02**: `analyze.py` anomaly filter reprojects raw 3857 `x,y`→UTM 17N (`webmercator_to_utm17n`); the "filtered" output is now real. | F-02 | `tests/test_analyze_anomaly_crs.py` |
+| 2026-06-23 | **T14/F-18 (Option B)**: relabeled `analyze.py` York-only (docstring + README + CLAUDE.md). | F-18, F-13 | docs |
+| 2026-06-23 | **T4/F-04 (Option C)**: headline census rate built over `REFERENCE_YEAR=2025`; per-year partitions unchanged. Real data: 127,017 pts in 2025, all 5 regions. | F-04 | `tests/test_reference_year_rate.py` |
+| 2026-06-23 | **T15/F-19**: new `build_coordinate_anomalies.py` + pipeline step → `coordinate_anomalies.csv` (separate layer; data intact). Real data: 2,755 coords ≥50 (43.5%). | F-19 | `tests/test_coordinate_anomalies.py` |
+| 2026-06-23 | Full suite green: 12 passed. | all | `uv run pytest` |
 
 **Note for whoever continues:** the data products under `data/02_transformed/` are stale w.r.t. these
 fixes. Regenerate with `uv run transform` (downloads must already be present) so `unified_data.csv`,
