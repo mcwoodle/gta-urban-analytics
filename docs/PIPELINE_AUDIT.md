@@ -314,7 +314,9 @@ dedup.)
 - **Where:** `tests/test_unify_datasets.py` was the only test (source_identifier prefixing; its
   `Toronto_Major_Crime` mock branch is dead — glob mocked to `[]`). No tests for CRS reprojection,
   dates, dedup, mapping, filtering, census, analyze.
-- **Status:** 🟡 (added Durham-mapping, coord-validation, shooting-arc tests this session; more in T12)
+- **Status:** 🟡 Every logic correction shipped this session now has ≥1 unit test (16 tests; see the
+  §7 coverage matrix). Broader coverage of un-changed code (dedup, date parsing, census build,
+  downloads) is still open (T12).
 
 #### F-15 — Minor correctness/cleanliness nits
 - `partition_by_year.py:25` imports `shutil` (unused).
@@ -479,6 +481,7 @@ into the Kepler viz).
 | 2026-06-23 | **T4/F-04 (Option C)**: headline census rate built over `REFERENCE_YEAR=2025`; per-year partitions unchanged. Real data: 127,017 pts in 2025, all 5 regions. | F-04 | `tests/test_reference_year_rate.py` |
 | 2026-06-23 | **T15/F-19**: new `build_coordinate_anomalies.py` + pipeline step → `coordinate_anomalies.csv` (separate layer; data intact). Real data: 2,755 coords ≥50 (43.5%). | F-19 | `tests/test_coordinate_anomalies.py` |
 | 2026-06-23 | Full suite green: 12 passed. | all | `uv run pytest` |
+| 2026-06-23 | **Test-coverage pass**: cross-referenced every logic fix to a test; added 4 tests for previously untested branches (F-01b fallback, F-01c no-offence file, F-03 unify-integration + filter quarantine). Added §7 matrix. | F-01, F-03, F-14 | `uv run pytest` → 16 passed |
 
 **Note for whoever continues:** the data products under `data/02_transformed/` are stale w.r.t. these
 fixes. Regenerate with `uv run transform` (downloads must already be present) so `unified_data.csv`,
@@ -486,3 +489,29 @@ the census GeoJSON, shooting arcs, and yearly partitions reflect the canonical D
 dropped null-island points.
 
 _(append entries here as fixes land — include the test/command that proves each fix)_
+
+---
+
+## 7. Fix ↔ test coverage matrix
+
+Every behaviour-changing fix shipped on this branch is locked by at least one unit test. Keep this
+table in sync when changing the corrected logic. (`uv run pytest` → **16 passed**.)
+
+| Fix | Behaviour locked | Test(s) |
+|-----|------------------|---------|
+| **F-01a** Durham offence → canonical via JSON | Durham `mapped_crime_category` is canonical | `test_durham_mapping.py::test_durham_offences_map_to_canonical_categories`, `::test_unify_durham_emits_canonical_category` |
+| **F-01b** unmapped offence → canonical fallback | `.mask("Other" → file canonical)`, never `Other` | `test_durham_mapping.py::test_unify_durham_unmapped_offence_falls_back_to_canonical` |
+| **F-01c** file with no `offence` column | file category (e.g. shootings) maps canonically | `test_durham_mapping.py::test_unify_durham_shootings_file_without_offence_column` |
+| **F-03** helper nulls `(0,0)`/out-of-bounds | `_null_out_of_bounds_coords` | `test_coordinate_validation.py::test_null_island_and_out_of_bounds_coords_are_nulled` |
+| **F-03** `unify` applies the nulling | `(0,0)` → NaN in `unify_datasets()` output | `test_coordinate_validation.py::test_unify_applies_coordinate_nulling` |
+| **F-03** NaN coords quarantined | filter drops NaN-coord rows → `invalid_data.csv` | `test_filter_invalid_incidents.py::test_nan_coordinates_are_quarantined` |
+| **F-11** weapons match | `mapped == "Weapons Offences"` detects weapon incidents | `test_shooting_arcs.py::test_weapons_offences_incident_is_detected` |
+| **F-02** reproject 3857→UTM 17N | near-mall flagged; far + raw-3857 not flagged | `test_analyze_anomaly_crs.py` (3 tests) |
+| **F-04** reference-year filter | rate counts only the reference year | `test_reference_year_rate.py` (2 tests) |
+| **F-19** anomaly detection | coords ≥ threshold flagged; empty case handled | `test_coordinate_anomalies.py` (2 tests) |
+| (pre-existing) source_identifier region prefix | no cross-region ID collision | `test_unify_datasets.py::test_unify_datasets_prevents_source_identifier_collisions` |
+
+**Not unit-tested (by design):** F-18 / doc relabels (README/CLAUDE.md/docstring — no logic); pipeline
+wiring in `PIPELINE_STEPS` and the anomaly `threshold` default (config, exercised via real-data runs in
+§6, not asserted). The disk-read branches of `enrich`/`build_coordinate_anomalies` share logic with the
+tested `crime_df` path.
