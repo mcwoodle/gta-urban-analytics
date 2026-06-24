@@ -31,6 +31,9 @@ def test_build_standalone_compact(tmp_path):
     ).to_file(src / "gta_census_da.geojson", driver="GeoJSON")
 
     pd.DataFrame({"id": [0], "src_lat": [43.6]}).to_csv(src / "shooting_arcs.csv", index=False)
+    pd.DataFrame({"lat": [43.8], "lon": [-79.4], "incident_count": [99]}).to_csv(
+        src / "coordinate_anomalies.csv", index=False
+    )
 
     build_standalone_compact(source_dir=str(src), verbose=False)
 
@@ -40,6 +43,7 @@ def test_build_standalone_compact(tmp_path):
     assert len(crime) == 1
     assert crime.loc[0, "lat"] == 43.12346
     assert set(crime.columns) == {"lat", "lon", "mapped_crime_category", "occurrence_date", "region"}
-    # Census compact + copied arcs present.
+    # Census compact + copied arcs + copied coordinate anomalies present.
     assert (out / "gta_census_da_compact.geojson").exists()
     assert (out / "shooting_arcs.csv").exists()
+    assert (out / "coordinate_anomalies.csv").exists()

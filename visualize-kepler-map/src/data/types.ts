@@ -101,7 +101,15 @@ export interface PointLayerSpec extends BaseLayerSpec {
     colorRange: ColorRangeSpec;
     radiusRange: [number, number];
     fixedRadius: boolean;
+    outline?: boolean;
+    thickness?: number;
   };
+  /** Optional data-driven color (e.g. anomaly dots by incident_count). */
+  colorField?: FieldSpec;
+  colorScale?: string;
+  /** Optional data-driven radius (e.g. anomaly dots by incident_count). */
+  sizeField?: FieldSpec;
+  sizeScale?: string;
 }
 
 export interface H3LayerSpec extends BaseLayerSpec {

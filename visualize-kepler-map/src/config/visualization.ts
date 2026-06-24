@@ -52,6 +52,15 @@ const VIRIDIS: ColorRangeSpec = {
   colors: ['#440154', '#443983', '#31688e', '#21918c', '#35b779', '#90d743', '#fde725']
 };
 
+// Alert ramp for the coordinate-anomaly overlay — deliberately off-palette
+// (magenta → deep purple) so flagged placeholder points read as "artifact".
+const MAGENTA_ALERT: ColorRangeSpec = {
+  name: 'Magenta Alert',
+  type: 'sequential',
+  category: 'Custom',
+  colors: ['#fcc5e0', '#f768a1', '#dd3497', '#ae017e', '#7a0177', '#49006a']
+};
+
 // --- The config -----------------------------------------------------------
 
 export const VIZ_CONFIG: VisualizationConfig = {
@@ -74,6 +83,15 @@ export const VIZ_CONFIG: VisualizationConfig = {
       id: 'shooting_arcs',
       label: 'Shooting → Centroid Arcs',
       url: '../../data/02_transformed/2025/shooting_arcs.csv',
+      visible: true
+    },
+    {
+      id: 'coordinate_anomalies',
+      label: 'Coordinate Anomalies (placeholder/snapped)',
+      // All-time, top-level product (not year-partitioned) — a placeholder
+      // coordinate is an artifact regardless of the selected year, so this URL
+      // has no year segment and stays constant across year changes.
+      url: '../../data/02_transformed/coordinate_anomalies.csv',
       visible: true
     }
   ],
@@ -157,6 +175,37 @@ export const VIZ_CONFIG: VisualizationConfig = {
       },
       colorField: { name: 'year', type: 'integer' },
       sizeField: { name: 'count_in_muni', type: 'integer' }
+    },
+
+    // -------------------------------------------------------------------
+    // Layer 5 — Coordinate Anomalies (placeholder / snapped points)
+    // -------------------------------------------------------------------
+    // Flags coordinates carrying an implausible number of incidents at one
+    // exact lat/lon (source-side address/centroid snapping — audit F-19).
+    // Coloured + sized by incident_count so the worst offenders stand out.
+    // The incidents are real and counted everywhere; this overlay just marks
+    // the geocoding artifacts so they aren't mistaken for organic hotspots.
+    {
+      kind: 'point',
+      id: 'coordinate_anomalies',
+      label: 'Coordinate Anomalies (placeholder/snapped)',
+      dataId: 'coordinate_anomalies',
+      isVisible: true,
+      columns: { lat: 'lat', lng: 'lon' },
+      visConfig: {
+        radius: 20,
+        opacity: 0.6,
+        filled: true,
+        colorRange: MAGENTA_ALERT,
+        radiusRange: [6, 36],
+        fixedRadius: false,
+        outline: true,
+        thickness: 1.5
+      },
+      colorField: { name: 'incident_count', type: 'integer' },
+      colorScale: 'quantile',
+      sizeField: { name: 'incident_count', type: 'integer' },
+      sizeScale: 'sqrt'
     }
   ],
 
