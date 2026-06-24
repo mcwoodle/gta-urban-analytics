@@ -305,7 +305,9 @@ dedup.)
   empty `features`; CSV headers from the *first* feature only → columns missing on feature 0 are
   dropped), `statcan/census_data.py` (no timeout; whole ZIP buffered in memory).
 - **Fix:** timeouts, bounded retry/backoff, break-on-empty-page, union feature keys for headers.
-- **Status:** ⬜ (task T9)
+- **Status:** ✅ Fixed — timeouts + bounded retries on all downloads; pagination stops on an empty page
+  (no infinite loop) and unions feature-property headers. Pure helpers covered.
+  (`tests/test_paginated.py`)
 
 #### F-13 — Documentation drift
 - **Where:** `README.md` §4/§5 (presents `analyze` as a multi-region engine — it's York-raw-only);
@@ -313,8 +315,8 @@ dedup.)
   Mischief`; the JSON uses `Drug Offences / Weapons Offences / Sexual Offences / Property Damage`);
   `docs/DataSets.md` (non-existent scripts like `download_durham_data.py`, stale `dataSetDownloads/`
   paths, a Halton GIS id that no longer matches the FeatureServer URL the code uses).
-- **Status:** 🟡 README + CLAUDE.md `analyze`/category text corrected this session; `docs/DataSets.md`
-  staleness (script names, Halton id) remains (T11).
+- **Status:** ✅ README + CLAUDE.md (earlier this session) and `docs/DataSets.md` (intro note: real
+  `uv run download` commands, `data/01_raw/` output, FeatureServer caveat) reconciled.
 
 #### F-14 — Thin test coverage
 - **Where:** `tests/test_unify_datasets.py` was the only test (source_identifier prefixing; its
@@ -453,10 +455,9 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
       parsing (else YTD dates → NaT), then capture the validated frame.
 
 ### P2 — robustness, hygiene, docs
-- [ ] **T9 · Harden downloads** (F-12). timeouts, retries/backoff, break-on-empty-page, union headers.
+- [x] **T9 · Harden downloads** (F-12). Done — timeouts + retries; empty-page break; union headers. *See §6.*
 - [ ] **T10 · Verify epoch-ms timezone semantics** (F-10). cross-check + document.
-- [ ] **T11 · Reconcile documentation** (F-13). README analyze scope; CLAUDE.md category list;
-      DataSets.md entry points/ids.
+- [x] **T11 · Reconcile documentation** (F-13). Done — README + CLAUDE.md + DataSets.md. *See §6.*
 - [ ] **T12 · Expand tests + nits** (F-14, F-15). dedup/date/filter tests; remove unused `shutil`;
       `NaT` on bad Durham month; strip Halton original; relabel analyze "Total" rate column.
 - [ ] **T13 · Pipeline data-flow clarity** (F-17). honest threading or explicit write-then-read;
@@ -468,9 +469,8 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
       layer to render it (+ optional per-year/standalone copies, and a tuned threshold). *See §6.*
 
 ### Suggested order
-Done: T1 T2 T3 T4 T5 T6 T7 T14 T15. **Remaining:** T8 (careful) · T9 (downloads) · T10 (tz) ·
-T11 (DataSets.md) · T12 (analyze "Total" + broader tests) · T13 (data-flow) · wire the F-19 anomaly
-layer into the Kepler viz.
+Done: T1-T7, T9, T11, T14, T15. **Remaining:** T8 (Pandera coercion — careful) · T10 (tz) ·
+T12 (analyze "Total" + broader tests) · T13 (data-flow) · wire the F-19 anomaly layer into the Kepler viz.
 
 ---
 
@@ -494,6 +494,9 @@ layer into the Kepler viz.
 | 2026-06-23 | **T3/F-05+F-06**: `_drop_stale_snapshots` (newest `*_to_<date>.csv` per source) in `unify`; fixed `toronto.py` overlap comment. | F-05, F-06 | `tests/test_snapshot_selection.py` |
 | 2026-06-23 | **F-15 nits**: removed unused `shutil`; Durham bad month → NaT; stripped `original_crime_type` (real data: 0 left). | F-15 | `tests/test_durham_mapping.py`, `tests/test_municipality_normalization.py` |
 | 2026-06-23 | Full suite green: 22 passed. | all | `uv run pytest` |
+| 2026-06-23 | **T9/F-12**: download hardening — timeouts + bounded retries (`hub.py`, `paginated.py`, `census_data.py`); pagination breaks on empty page; CSV headers union all feature keys. | F-12 | `tests/test_paginated.py` |
+| 2026-06-23 | **T11/F-13**: reconciled `docs/DataSets.md` (real commands, `data/01_raw/` output, FeatureServer note). | F-13 | docs |
+| 2026-06-23 | Full suite green: 27 passed. | all | `uv run pytest` |
 
 **Note for whoever continues:** the data products under `data/02_transformed/` are stale w.r.t. these
 fixes. Regenerate with `uv run transform` (downloads must already be present) so `unified_data.csv`,
@@ -507,7 +510,7 @@ _(append entries here as fixes land — include the test/command that proves eac
 ## 7. Fix ↔ test coverage matrix
 
 Every behaviour-changing fix shipped on this branch is locked by at least one unit test. Keep this
-table in sync when changing the corrected logic. (`uv run pytest` → **22 passed**.)
+table in sync when changing the corrected logic. (`uv run pytest` → **27 passed**.)
 
 | Fix | Behaviour locked | Test(s) |
 |-----|------------------|---------|
@@ -525,8 +528,10 @@ table in sync when changing the corrected logic. (`uv run pytest` → **22 passe
 | **F-08** municipality normalization | codes/casing/no-space → one Title-case label; original stripped | `test_municipality_normalization.py` (2 tests) |
 | **F-05/F-06** stale-snapshot dropping | newest `*_to_<date>.csv` per source kept | `test_snapshot_selection.py` (3 tests) |
 | **F-15** Durham bad month → NaT | unrecognised month → NaT, not January | `test_durham_mapping.py::test_unify_durham_bad_month_yields_nat` |
+| **F-12** paginated downloader | stops on empty page; CSV headers union all feature keys | `test_paginated.py` (5 tests) |
 
 **Not unit-tested (by design):** F-18 / doc relabels (README/CLAUDE.md/docstring — no logic); pipeline
 wiring in `PIPELINE_STEPS` and the anomaly `threshold` default (config, exercised via real-data runs in
-§6, not asserted). The disk-read branches of `enrich`/`build_coordinate_anomalies` share logic with the
-tested `crime_df` path.
+§6, not asserted); the `hub.py`/`paginated.py` network wrappers (timeout/retry/`urlopen`) — only their
+pure helpers are unit-tested. The disk-read branches of `enrich`/`build_coordinate_anomalies` share
+logic with the tested `crime_df` path.
