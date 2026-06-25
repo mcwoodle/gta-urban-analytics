@@ -52,13 +52,16 @@ const VIRIDIS: ColorRangeSpec = {
   colors: ['#440154', '#443983', '#31688e', '#21918c', '#35b779', '#90d743', '#fde725']
 };
 
-// Alert ramp for the coordinate-anomaly overlay — deliberately off-palette
-// (magenta → deep purple) so flagged placeholder points read as "artifact".
-const MAGENTA_ALERT: ColorRangeSpec = {
-  name: 'Magenta Alert',
-  type: 'sequential',
+// Qualitative ramp for the coordinate-anomaly overlay. Colours by anomaly_type
+// (an ordinal field), so the two classes read distinctly. Domain is sorted
+// alphabetically by Kepler's ordinal scale: index 0 = 'high_traffic_area'
+// (amber — an organic hotspot near a mall/hospital), index 1 = 'unexplained'
+// (magenta — a likely placeholder/geocoding artifact).
+const ANOMALY_CLASS: ColorRangeSpec = {
+  name: 'Anomaly Class',
+  type: 'qualitative',
   category: 'Custom',
-  colors: ['#fcc5e0', '#f768a1', '#dd3497', '#ae017e', '#7a0177', '#49006a']
+  colors: ['#FFB000', '#E5007A']
 };
 
 // --- The config -----------------------------------------------------------
@@ -180,11 +183,13 @@ export const VIZ_CONFIG: VisualizationConfig = {
     // -------------------------------------------------------------------
     // Layer 5 — Coordinate Anomalies (placeholder / snapped points)
     // -------------------------------------------------------------------
-    // Flags coordinates carrying an implausible number of incidents at one
-    // exact lat/lon (source-side address/centroid snapping — audit F-19).
-    // Coloured + sized by incident_count so the worst offenders stand out.
-    // The incidents are real and counted everywhere; this overlay just marks
-    // the geocoding artifacts so they aren't mistaken for organic hotspots.
+    // Flags coordinates carrying an implausible number of incidents (> 200) at
+    // one exact lat/lon (source-side address/centroid snapping — audit F-19).
+    // Sized by incident_count; COLOURED by anomaly_type so the two classes
+    // separate: amber = near a known high-traffic venue (mall/hospital — partly
+    // organic), magenta = unexplained (likely a pure geocoding artifact).
+    // The incidents are real and counted everywhere; this overlay just marks the
+    // artifacts so they aren't mistaken for organic hotspots.
     {
       kind: 'point',
       id: 'coordinate_anomalies',
@@ -196,14 +201,14 @@ export const VIZ_CONFIG: VisualizationConfig = {
         radius: 20,
         opacity: 0.6,
         filled: true,
-        colorRange: MAGENTA_ALERT,
+        colorRange: ANOMALY_CLASS,
         radiusRange: [6, 36],
         fixedRadius: false,
         outline: true,
         thickness: 1.5
       },
-      colorField: { name: 'incident_count', type: 'integer' },
-      colorScale: 'quantile',
+      colorField: { name: 'anomaly_type', type: 'string' },
+      colorScale: 'ordinal',
       sizeField: { name: 'incident_count', type: 'integer' },
       sizeScale: 'sqrt'
     }
