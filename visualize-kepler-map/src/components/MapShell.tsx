@@ -83,6 +83,21 @@ export function MapShell(): JSX.Element {
 
         const layers = buildLayers();
 
+        // Per-dataset hover tooltips. Kepler defaults to a dataset's first 5
+        // columns, which hides the anomaly classification; this surfaces the
+        // chosen fields (with `description` leading) on hover instead.
+        const visState: Record<string, unknown> = { layers };
+        if (vizConfig.tooltips) {
+          visState.interactionConfig = {
+            tooltip: {
+              fieldsToShow: vizConfig.tooltips,
+              compareMode: false,
+              compareType: 'absolute',
+              enabled: true
+            }
+          };
+        }
+
         dispatch(
           forward(
             addDataToMap({
@@ -91,7 +106,7 @@ export function MapShell(): JSX.Element {
               config: {
                 version: 'v1',
                 config: {
-                  visState: { layers },
+                  visState,
                   mapState: vizConfig.mapState,
                   mapStyle: {
                     styleType: vizConfig.mapStyle

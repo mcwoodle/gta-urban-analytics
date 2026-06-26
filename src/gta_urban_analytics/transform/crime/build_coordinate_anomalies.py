@@ -11,11 +11,23 @@ unified_data.csv and still counted everywhere. This module only emits a *separat
 layer so the visualization can render these points distinctly (flagged anomalies)
 instead of letting them masquerade as organic crime hotspots.
 
+Each flagged coordinate is further classified against a curated list of
+high-foot-traffic GTA venues (malls, hospitals, attractions, transit hubs — see
+``high_traffic_locations``): an anomaly that sits on top of a known venue is at
+least partly *organic* (``anomaly_type="high_traffic_area"``), whereas one with no
+nearby venue is more likely a pure placeholder/geocoding artifact
+(``anomaly_type="unexplained"``). The viz colours the two classes differently.
+
 Depends on:
   - data/02_transformed/unified_data.csv  (Step 3)
 
 Output: data/02_transformed/coordinate_anomalies.csv
-Columns: lat, lon, incident_count, regions, top_category, first_date, last_date
+Columns: lat, lon, description, anomaly_type, nearest_location, location_category,
+         incident_count, top_category, regions, first_date, last_date
+
+``description`` is a plain-English summary of the classification; it (and the
+other classification columns) lead the column order so they surface in Kepler's
+hover tooltip, which defaults to a dataset's first few fields (audit F-19).
 """
 
 import os
@@ -23,19 +35,58 @@ import logging
 
 import pandas as pd
 
+from .high_traffic_locations import classify_coordinate
+
 logger = logging.getLogger(__name__)
 
 _project_root = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 )
 
-# A single identical full-precision coordinate carrying at least this many
+# A single identical full-precision coordinate carrying MORE THAN this many
 # incidents is treated as a placeholder/snapped location rather than an organic
 # hotspot. Tunable — inspect the output and adjust per the data distribution.
-_ANOMALY_MIN_INCIDENTS_PER_COORD = 50
+_ANOMALY_MIN_INCIDENTS_PER_COORD = 500
 
 _INPUT_COLUMNS = ["lat", "lon", "region", "municipality", "mapped_crime_category", "occurrence_date"]
-_OUTPUT_COLUMNS = ["lat", "lon", "incident_count", "regions", "top_category", "first_date", "last_date"]
+# Per-coordinate context columns and the high-traffic classification columns.
+_CONTEXT_COLUMNS = ["lat", "lon", "incident_count", "regions", "top_category", "first_date", "last_date"]
+_CLASS_COLUMNS = ["anomaly_type", "nearest_location", "location_category", "description"]
+# Final column order leads with the human-readable description + classification so
+# they head Kepler's hover tooltip (which shows a dataset's first few fields).
+_OUTPUT_COLUMNS = [
+    "lat", "lon", "description", "anomaly_type", "nearest_location", "location_category",
+    "incident_count", "top_category", "regions", "first_date", "last_date",
+]
+
+
+def _classify_row(lat: float, lon: float) -> pd.Series:
+    """Tag one coordinate as near a known high-traffic venue, or unexplained."""
+    match = classify_coordinate(lat, lon)
+    if match is None:
+        return pd.Series(
+            {
+                "anomaly_type": "unexplained",
+                "nearest_location": "",
+                "location_category": "",
+                "description": (
+                    "Unexplained — no known high-traffic venue nearby; "
+                    "likely placeholder/snapped geocoding"
+                ),
+            }
+        )
+    loc, _dist = match
+    return pd.Series(
+        {
+            "anomaly_type": "high_traffic_area",
+            "nearest_location": loc.name,
+            "location_category": loc.category,
+            "description": (
+                f"High-traffic area — near {loc.name} ({loc.category}); "
+                "incidents are likely organic"
+            ),
+        }
+    )
 
 
 def build_coordinate_anomalies(
@@ -75,9 +126,9 @@ def build_coordinate_anomalies(
 
     df = df.dropna(subset=["lat", "lon"])
 
-    # Count incidents per exact coordinate; keep only those at/above the threshold.
+    # Count incidents per exact coordinate; keep only those above the threshold.
     counts = df.groupby(["lat", "lon"]).size().rename("incident_count")
-    flagged = counts[counts >= threshold]
+    flagged = counts[counts > threshold]
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -85,7 +136,7 @@ def build_coordinate_anomalies(
         out = pd.DataFrame(columns=_OUTPUT_COLUMNS)
         out.to_csv(output_csv, index=False)
         if verbose:
-            logger.info(f"No coordinates reached the anomaly threshold (>= {threshold}). Wrote empty {output_csv}.")
+            logger.info(f"No coordinates reached the anomaly threshold (> {threshold}). Wrote empty {output_csv}.")
         return out
 
     # Build context (regions, dominant category, date span) only for flagged coords.
@@ -115,13 +166,22 @@ def build_coordinate_anomalies(
         .merge(meta, on=["lat", "lon"], how="left")
         .sort_values("incident_count", ascending=False)
         .reset_index(drop=True)
-    )[_OUTPUT_COLUMNS]
+    )[_CONTEXT_COLUMNS]
+
+    # Classify each flagged coordinate against known high-traffic venues so the
+    # viz can flag organic hotspots (malls/hospitals) apart from unexplained
+    # placeholders.
+    classes = out.apply(lambda r: _classify_row(r["lat"], r["lon"]), axis=1)
+    out = pd.concat([out, classes], axis=1)[_OUTPUT_COLUMNS]
 
     out.to_csv(output_csv, index=False)
     if verbose:
+        n_high = int((out["anomaly_type"] == "high_traffic_area").sum())
         logger.info(
-            f"Flagged {len(out):,} placeholder/snapped coordinates (>= {threshold} incidents each), "
-            f"covering {int(out['incident_count'].sum()):,} incidents → {output_csv}"
+            f"Flagged {len(out):,} placeholder/snapped coordinates (> {threshold} incidents each), "
+            f"covering {int(out['incident_count'].sum()):,} incidents "
+            f"({n_high:,} near known high-traffic venues, {len(out) - n_high:,} unexplained) "
+            f"→ {output_csv}"
         )
     return out
 

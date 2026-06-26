@@ -52,6 +52,18 @@ const VIRIDIS: ColorRangeSpec = {
   colors: ['#440154', '#443983', '#31688e', '#21918c', '#35b779', '#90d743', '#fde725']
 };
 
+// Qualitative ramp for the coordinate-anomaly overlay. Colours by anomaly_type
+// (an ordinal field), so the two classes read distinctly. Domain is sorted
+// alphabetically by Kepler's ordinal scale: index 0 = 'high_traffic_area'
+// (amber — an organic hotspot near a mall/hospital), index 1 = 'unexplained'
+// (magenta — a likely placeholder/geocoding artifact).
+const ANOMALY_CLASS: ColorRangeSpec = {
+  name: 'Anomaly Class',
+  type: 'qualitative',
+  category: 'Custom',
+  colors: ['#FFB000', '#E5007A']
+};
+
 // --- The config -----------------------------------------------------------
 
 export const VIZ_CONFIG: VisualizationConfig = {
@@ -74,6 +86,15 @@ export const VIZ_CONFIG: VisualizationConfig = {
       id: 'shooting_arcs',
       label: 'Shooting → Centroid Arcs',
       url: '../../data/02_transformed/2025/shooting_arcs.csv',
+      visible: true
+    },
+    {
+      id: 'coordinate_anomalies',
+      label: 'Coordinate Anomalies (placeholder/snapped)',
+      // All-time, top-level product (not year-partitioned) — a placeholder
+      // coordinate is an artifact regardless of the selected year, so this URL
+      // has no year segment and stays constant across year changes.
+      url: '../../data/02_transformed/coordinate_anomalies.csv',
       visible: true
     }
   ],
@@ -157,8 +178,58 @@ export const VIZ_CONFIG: VisualizationConfig = {
       },
       colorField: { name: 'year', type: 'integer' },
       sizeField: { name: 'count_in_muni', type: 'integer' }
+    },
+
+    // -------------------------------------------------------------------
+    // Layer 5 — Coordinate Anomalies (placeholder / snapped points)
+    // -------------------------------------------------------------------
+    // Flags coordinates carrying an implausible number of incidents (> 500) at
+    // one exact lat/lon (source-side address/centroid snapping — audit F-19).
+    // Sized by incident_count; COLOURED by anomaly_type so the two classes
+    // separate: amber = near a known high-traffic venue (mall/hospital — partly
+    // organic), magenta = unexplained (likely a pure geocoding artifact).
+    // The incidents are real and counted everywhere; this overlay just marks the
+    // artifacts so they aren't mistaken for organic hotspots. Hovering a dot
+    // shows its classification (see `tooltips.coordinate_anomalies` below).
+    {
+      kind: 'point',
+      id: 'coordinate_anomalies',
+      label: 'Coordinate Anomalies (placeholder/snapped)',
+      dataId: 'coordinate_anomalies',
+      isVisible: true,
+      columns: { lat: 'lat', lng: 'lon' },
+      visConfig: {
+        radius: 20,
+        opacity: 0.6,
+        filled: true,
+        colorRange: ANOMALY_CLASS,
+        radiusRange: [10, 150],
+        fixedRadius: false,
+        outline: true,
+        thickness: 1.5
+      },
+      colorField: { name: 'anomaly_type', type: 'string' },
+      colorScale: 'ordinal',
+      sizeField: { name: 'incident_count', type: 'integer' },
+      sizeScale: 'sqrt'
     }
   ],
+
+  // Hover-tooltip fields per dataset. Without this, Kepler shows only a
+  // dataset's first 5 columns — which for the anomaly layer omits the
+  // classification entirely. Lead with `description` (a plain-English summary)
+  // so hovering any anomaly dot explains how it was classified and why.
+  tooltips: {
+    coordinate_anomalies: [
+      'description',
+      'anomaly_type',
+      'nearest_location',
+      'location_category',
+      'incident_count',
+      'top_category',
+      'regions'
+    ]
+  },
 
   // GTA-fitting viewport: covers Toronto + Halton + Peel + York + Durham.
   mapState: {

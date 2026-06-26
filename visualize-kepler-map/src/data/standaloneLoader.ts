@@ -29,12 +29,13 @@ interface StandaloneEntry {
 // dataset id/label/format the rest of the app expects. Ids must match
 // VIZ_CONFIG.datasets so layers bind to the right data.
 //
-// Full profile embeds: crime_points, census_da, shooting_arcs
+// Full profile embeds: crime_points, census_da, shooting_arcs, coordinate_anomalies
 // Lite profile embeds: crime_h3_lite (pre-aggregated H3 cells)
 const ENTRIES_FULL: StandaloneEntry[] = [
   { id: 'crime_points', label: 'Unified GTA Crime', format: 'csv' },
   { id: 'census_da', label: 'Census Dissemination Areas', format: 'geojson' },
-  { id: 'shooting_arcs', label: 'Shooting → Centroid Arcs', format: 'csv' }
+  { id: 'shooting_arcs', label: 'Shooting → Centroid Arcs', format: 'csv' },
+  { id: 'coordinate_anomalies', label: 'Coordinate Anomalies (placeholder/snapped)', format: 'csv' }
 ];
 
 const ENTRIES_LITE: StandaloneEntry[] = [

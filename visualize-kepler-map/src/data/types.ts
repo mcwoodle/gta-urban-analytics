@@ -101,7 +101,15 @@ export interface PointLayerSpec extends BaseLayerSpec {
     colorRange: ColorRangeSpec;
     radiusRange: [number, number];
     fixedRadius: boolean;
+    outline?: boolean;
+    thickness?: number;
   };
+  /** Optional data-driven color (e.g. anomaly dots by incident_count). */
+  colorField?: FieldSpec;
+  colorScale?: string;
+  /** Optional data-driven radius (e.g. anomaly dots by incident_count). */
+  sizeField?: FieldSpec;
+  sizeScale?: string;
 }
 
 export interface H3LayerSpec extends BaseLayerSpec {
@@ -140,6 +148,10 @@ export interface VisualizationConfig {
   mapState: MapStateSpec;
   /** Kepler base map style id (e.g. 'voyager', 'dark', 'light'). */
   mapStyle: string;
+  /** Optional per-dataset hover-tooltip fields, keyed by dataset id and listed
+   *  in display order. Overrides Kepler's default (a dataset's first 5 columns)
+   *  so chosen fields — e.g. the anomaly classification — always show on hover. */
+  tooltips?: Record<string, string[]>;
 }
 
 /** A dataset in the shape `addDataToMap` expects: dataset info plus the

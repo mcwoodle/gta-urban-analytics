@@ -1,7 +1,7 @@
 # GTA Urban Analytics — Pipeline Deep-Dive Audit & Remediation Log
 
-**Status:** Complete — 19/19 findings resolved, T1–T15 done (only the F-19 Kepler-viz wiring remains, in
-the TS sub-project) · **Started:** 2026-06-23 · **Branch:** `chore/data-pipeline-audit`
+**Status:** Complete — 19/19 findings resolved (incl. the F-19 Kepler anomaly layer), T1–T15 done ·
+**Started:** 2026-06-23 · **Branches:** `chore/data-pipeline-audit` (audit, merged), `feat/anomaly-viz-layer` (viz)
 **Author:** automated deep-dive (Claude) · **Scope:** data acquisition, parsing, transformation, validation, analysis, and the data feeding the Kepler visualization.
 
 ---
@@ -224,9 +224,18 @@ dedup.)
   dedup key. Relates to F-02 (real vs artificial hotspots) and F-04.
 - **Status:** ✅ **Decision: keep data intact + separate anomaly layer.** New
   `build_coordinate_anomalies.py` (pipeline step) writes `coordinate_anomalies.csv` — coordinates with
-  ≥50 incidents (real data: **2,755 coords / 351,762 incidents / 43.5%**; threshold is a tunable module
-  constant). Incidents stay in all counts/rates. Remaining: wire the Kepler layer to render it, and
-  (optionally) emit per-year/standalone copies. (`tests/test_coordinate_anomalies.py`)
+  **> 500** incidents at one identical point (tightened from the initial ≥50 cut; tunable threshold).
+  Incidents stay in all counts/rates. Each flagged coordinate is classified against a curated list of
+  high-foot-traffic GTA venues (`high_traffic_locations.py` — malls, hospitals, attractions, transit):
+  `anomaly_type = "high_traffic_area"` when within 500 m of a venue (an at-least-partly organic hotspot)
+  vs `"unexplained"` (a likely pure placeholder/geocoding artifact), with `nearest_location` /
+  `location_category` for context. The Kepler viz renders it as **Layer 5** — a `point` overlay sized by
+  `incident_count` and **coloured by `anomaly_type`** (amber = high-traffic, magenta = unexplained;
+  full profile + embedded in the standalone build). Hovering a dot reveals the classification: the
+  builder now emits a plain-English `description` column (leading the CSV column order), and the viz
+  config pins the anomaly layer's tooltip fields (`tooltips.coordinate_anomalies`) so the hover box
+  always shows it (Kepler otherwise defaults to a dataset's first 5 columns).
+  (`tests/test_coordinate_anomalies.py`, `tests/test_high_traffic_locations.py`)
 
 ### 🟠 Medium severity
 
@@ -478,8 +487,8 @@ Each task names the finding(s) it closes. Check off as completed and add a §6 e
       layer to render it (+ optional per-year/standalone copies, and a tuned threshold). *See §6.*
 
 ### Suggested order
-Done: **T1–T15 (all backlog tasks).** **Remaining:** only the F-19 anomaly-layer wiring into the Kepler
-viz (TS sub-project — outside the data pipeline).
+Done: **T1–T15 + the F-19 Kepler anomaly layer (full + standalone profiles).** Audit fully complete —
+nothing outstanding.
 
 ---
 
@@ -514,6 +523,10 @@ viz (TS sub-project — outside the data pipeline).
 | 2026-06-24 | **T13/F-17**: refactored `pipeline.py` into `TRANSFORM_STEPS` (in-memory) + `DERIVED_STEPS` (from disk); removed the fake `df`-threading; documented incidents-not-offences. Behaviour-preserving. | F-17 | `tests/test_pipeline.py` (33 passed) |
 | 2026-06-24 | **T12/F-15**: factored `_per_capita_table` (cumulative "Total" → "Total (cumulative)") into `analyze.py` sections 3 & 4. | F-15 | `tests/test_analyze_percapita.py` |
 | 2026-06-24 | **T12/F-14**: tests for census build, year partition, `verify_mappings`, standalone-compact — every non-network module now covered. | F-14 | `uv run pytest` → 39 passed |
+| 2026-06-24 | **F-19 viz**: wired `coordinate_anomalies.csv` into the Kepler map as Layer 5 (magenta `point`, sized/coloured by `incident_count`); extended `PointLayerSpec`/`buildPointLayer`; embedded in the standalone build (`standaloneLoader` + `build-standalone.mjs` + `build_standalone_compact` copy). | F-19 | `tsc --noEmit` + `yarn build:standalone` green |
+| 2026-06-24 | **F-19 refine**: tightened the anomaly cut to **> 200** incidents/coord; added `high_traffic_locations.py` (curated GTA malls/hospitals/attractions/transit) + per-coord classification → new `anomaly_type` / `nearest_location` / `location_category` columns; Layer 5 now colours by `anomaly_type` (amber high-traffic vs magenta unexplained); refreshed viz README to 5 layers. | F-19 | `test_high_traffic_locations.py` + `test_coordinate_anomalies.py` (48 passed) · `tsc --noEmit` clean |
+| 2026-06-26 | **F-19 hover legibility**: anomaly classification was invisible on hover (Kepler's tooltip defaults to a dataset's first 5 columns). Added a plain-English `description` column (now leading the CSV column order) + pinned the anomaly layer's tooltip fields via `tooltips.coordinate_anomalies` in `visualization.ts` (threaded through `MapShell`). Hovering a dot now explains its classification. | F-19 | `test_coordinate_anomalies.py` (48 passed) · `tsc --noEmit` + `yarn build:all` green |
+| 2026-06-26 | **F-19 tuning**: raised the anomaly threshold to **> 500** incidents/coord (from 200) and widened the Layer 5 point `radiusRange` to `[10, 150]` so the dots scale more visibly with `incident_count`. | F-19 | regenerated `coordinate_anomalies.csv` · `yarn build:all` green |
 
 **Note for whoever continues:** the data products under `data/02_transformed/` were **regenerated green
 on 2026-06-23** with all fixes applied, so they are current. Re-run `uv run transform` after any future
@@ -541,7 +554,7 @@ table in sync when changing the corrected logic. (`uv run pytest` → **39 passe
 | **F-11** weapons match | `mapped == "Weapons Offences"` detects weapon incidents | `test_shooting_arcs.py::test_weapons_offences_incident_is_detected` |
 | **F-02** reproject 3857→UTM 17N | near-mall flagged; far + raw-3857 not flagged | `test_analyze_anomaly_crs.py` (3 tests) |
 | **F-04** reference-year filter | rate counts only the reference year | `test_reference_year_rate.py` (2 tests) |
-| **F-19** anomaly detection | coords ≥ threshold flagged; empty case handled | `test_coordinate_anomalies.py` (2 tests) |
+| **F-19** anomaly detection | coords `> threshold` flagged; empty case handled; classified high-traffic vs unexplained | `test_coordinate_anomalies.py` + `test_high_traffic_locations.py` |
 | (pre-existing) source_identifier region prefix | no cross-region ID collision | `test_unify_datasets.py::test_unify_datasets_prevents_source_identifier_collisions` |
 | **F-08** municipality normalization | codes/casing/no-space → one Title-case label; original stripped | `test_municipality_normalization.py` (2 tests) |
 | **F-05/F-06** stale-snapshot dropping | newest `*_to_<date>.csv` per source kept | `test_snapshot_selection.py` (3 tests) |

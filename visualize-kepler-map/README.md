@@ -1,8 +1,17 @@
 # GTA Urban Analytics — Kepler.gl Visualization
 
-A four-layer Kepler.gl map of GTA crime + census data, driven from a single
+A five-layer Kepler.gl map of GTA crime + census data, driven from a single
 typed config file (`src/config/visualization.ts`) so layer choice and styling
 can be tweaked without touching React code.
+
+The five layers: (1) crime hexbin, (2) median-income choropleth, (3) crime-rate
+choropleth, (4) shooting → centroid arcs, and (5) a coordinate-anomaly overlay
+that marks placeholder/snapped points (> 500 incidents at one exact lat/lon) —
+coloured by class so anomalies near a known high-traffic venue (mall/hospital)
+read apart from unexplained ones (audit F-19). Hovering an anomaly dot shows a
+plain-English `description` of its classification (plus `anomaly_type`,
+`nearest_location`, and `incident_count`), configured via `tooltips` in
+`src/config/visualization.ts`.
 
 ## Data prerequisite
 
@@ -58,7 +67,7 @@ are relative, so the site works under any path prefix.
 yarn build:standalone    # → dist/standalone.html (plus the multi-file site)
 ```
 
-The produced `dist/standalone.html` contains the JS bundle **and** all three
+The produced `dist/standalone.html` contains the JS bundle **and** all four
 datasets (gzip-compressed, base64-encoded) embedded inline. Open it directly
 from a file browser or drag it onto a browser tab — no server required.
 
@@ -82,7 +91,8 @@ src/
 │   ├── index.ts              # buildLayers() dispatcher
 │   ├── hexbinLayer.ts        # Layer 1
 │   ├── geojsonLayer.ts       # Layers 2 + 3
-│   └── arcLayer.ts           # Layer 4
+│   ├── arcLayer.ts           # Layer 4
+│   └── pointLayer.ts         # Layer 5 (coordinate anomalies)
 ├── components/
 │   ├── MapShell.tsx          # load + dispatch wiring
 │   └── RadiusControl.tsx     # custom debounced slider

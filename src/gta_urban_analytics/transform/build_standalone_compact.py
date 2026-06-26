@@ -144,6 +144,15 @@ def build_standalone_compact(source_dir: str | None = None, verbose: bool = True
     else:
         logger.warning(f"Missing {arcs_src}; standalone build will lack arc layer data.")
 
+    # --- Coordinate anomalies (copy unchanged; top-level only, so absent in
+    # per-year folders — copy when present, no warning otherwise). ---
+    anomalies_src = os.path.join(source_dir, "coordinate_anomalies.csv")
+    if os.path.exists(anomalies_src):
+        anomalies_out = os.path.join(out_dir, "coordinate_anomalies.csv")
+        if verbose:
+            logger.info(f"Copying coordinate anomalies to {anomalies_out}")
+        shutil.copyfile(anomalies_src, anomalies_out)
+
     # --- Size report ---
     if verbose:
         def _size(p):
