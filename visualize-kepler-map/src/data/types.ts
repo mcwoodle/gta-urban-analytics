@@ -148,6 +148,10 @@ export interface VisualizationConfig {
   mapState: MapStateSpec;
   /** Kepler base map style id (e.g. 'voyager', 'dark', 'light'). */
   mapStyle: string;
+  /** Optional per-dataset hover-tooltip fields, keyed by dataset id and listed
+   *  in display order. Overrides Kepler's default (a dataset's first 5 columns)
+   *  so chosen fields — e.g. the anomaly classification — always show on hover. */
+  tooltips?: Record<string, string[]>;
 }
 
 /** A dataset in the shape `addDataToMap` expects: dataset info plus the

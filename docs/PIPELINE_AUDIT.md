@@ -231,7 +231,10 @@ dedup.)
   vs `"unexplained"` (a likely pure placeholder/geocoding artifact), with `nearest_location` /
   `location_category` for context. The Kepler viz renders it as **Layer 5** — a `point` overlay sized by
   `incident_count` and **coloured by `anomaly_type`** (amber = high-traffic, magenta = unexplained;
-  full profile + embedded in the standalone build).
+  full profile + embedded in the standalone build). Hovering a dot reveals the classification: the
+  builder now emits a plain-English `description` column (leading the CSV column order), and the viz
+  config pins the anomaly layer's tooltip fields (`tooltips.coordinate_anomalies`) so the hover box
+  always shows it (Kepler otherwise defaults to a dataset's first 5 columns).
   (`tests/test_coordinate_anomalies.py`, `tests/test_high_traffic_locations.py`)
 
 ### 🟠 Medium severity
@@ -522,6 +525,7 @@ nothing outstanding.
 | 2026-06-24 | **T12/F-14**: tests for census build, year partition, `verify_mappings`, standalone-compact — every non-network module now covered. | F-14 | `uv run pytest` → 39 passed |
 | 2026-06-24 | **F-19 viz**: wired `coordinate_anomalies.csv` into the Kepler map as Layer 5 (magenta `point`, sized/coloured by `incident_count`); extended `PointLayerSpec`/`buildPointLayer`; embedded in the standalone build (`standaloneLoader` + `build-standalone.mjs` + `build_standalone_compact` copy). | F-19 | `tsc --noEmit` + `yarn build:standalone` green |
 | 2026-06-24 | **F-19 refine**: tightened the anomaly cut to **> 200** incidents/coord; added `high_traffic_locations.py` (curated GTA malls/hospitals/attractions/transit) + per-coord classification → new `anomaly_type` / `nearest_location` / `location_category` columns; Layer 5 now colours by `anomaly_type` (amber high-traffic vs magenta unexplained); refreshed viz README to 5 layers. | F-19 | `test_high_traffic_locations.py` + `test_coordinate_anomalies.py` (48 passed) · `tsc --noEmit` clean |
+| 2026-06-26 | **F-19 hover legibility**: anomaly classification was invisible on hover (Kepler's tooltip defaults to a dataset's first 5 columns). Added a plain-English `description` column (now leading the CSV column order) + pinned the anomaly layer's tooltip fields via `tooltips.coordinate_anomalies` in `visualization.ts` (threaded through `MapShell`). Hovering a dot now explains its classification. | F-19 | `test_coordinate_anomalies.py` (48 passed) · `tsc --noEmit` + `yarn build:all` green |
 
 **Note for whoever continues:** the data products under `data/02_transformed/` were **regenerated green
 on 2026-06-23** with all fixes applied, so they are current. Re-run `uv run transform` after any future

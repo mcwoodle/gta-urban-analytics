@@ -189,7 +189,8 @@ export const VIZ_CONFIG: VisualizationConfig = {
     // separate: amber = near a known high-traffic venue (mall/hospital — partly
     // organic), magenta = unexplained (likely a pure geocoding artifact).
     // The incidents are real and counted everywhere; this overlay just marks the
-    // artifacts so they aren't mistaken for organic hotspots.
+    // artifacts so they aren't mistaken for organic hotspots. Hovering a dot
+    // shows its classification (see `tooltips.coordinate_anomalies` below).
     {
       kind: 'point',
       id: 'coordinate_anomalies',
@@ -213,6 +214,22 @@ export const VIZ_CONFIG: VisualizationConfig = {
       sizeScale: 'sqrt'
     }
   ],
+
+  // Hover-tooltip fields per dataset. Without this, Kepler shows only a
+  // dataset's first 5 columns — which for the anomaly layer omits the
+  // classification entirely. Lead with `description` (a plain-English summary)
+  // so hovering any anomaly dot explains how it was classified and why.
+  tooltips: {
+    coordinate_anomalies: [
+      'description',
+      'anomaly_type',
+      'nearest_location',
+      'location_category',
+      'incident_count',
+      'top_category',
+      'regions'
+    ]
+  },
 
   // GTA-fitting viewport: covers Toronto + Halton + Peel + York + Durham.
   mapState: {

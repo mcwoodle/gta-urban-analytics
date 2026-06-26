@@ -10,8 +10,9 @@ from gta_urban_analytics.transform.crime.build_coordinate_anomalies import (
 )
 
 _OUTPUT_COLUMNS = [
-    "lat", "lon", "incident_count", "regions", "top_category", "first_date",
-    "last_date", "anomaly_type", "nearest_location", "location_category",
+    "lat", "lon", "description", "anomaly_type", "nearest_location",
+    "location_category", "incident_count", "top_category", "regions",
+    "first_date", "last_date",
 ]
 
 
@@ -43,6 +44,7 @@ def test_flags_high_count_coordinate_in_open_country(tmp_path):
     assert row["anomaly_type"] == "unexplained"
     assert row["nearest_location"] == ""
     assert row["location_category"] == ""
+    assert row["description"].startswith("Unexplained")
 
 
 def test_flags_high_count_coordinate_at_known_venue(tmp_path):
@@ -58,6 +60,7 @@ def test_flags_high_count_coordinate_at_known_venue(tmp_path):
     assert row["anomaly_type"] == "high_traffic_area"
     assert row["nearest_location"] == "CF Toronto Eaton Centre"
     assert row["location_category"] == "mall"
+    assert "CF Toronto Eaton Centre" in row["description"]
 
 
 def test_threshold_is_strictly_greater_than(tmp_path):

@@ -22,8 +22,12 @@ Depends on:
   - data/02_transformed/unified_data.csv  (Step 3)
 
 Output: data/02_transformed/coordinate_anomalies.csv
-Columns: lat, lon, incident_count, regions, top_category, first_date, last_date,
-         anomaly_type, nearest_location, location_category
+Columns: lat, lon, description, anomaly_type, nearest_location, location_category,
+         incident_count, top_category, regions, first_date, last_date
+
+``description`` is a plain-English summary of the classification; it (and the
+other classification columns) lead the column order so they surface in Kepler's
+hover tooltip, which defaults to a dataset's first few fields (audit F-19).
 """
 
 import os
@@ -45,10 +49,15 @@ _project_root = os.path.normpath(
 _ANOMALY_MIN_INCIDENTS_PER_COORD = 200
 
 _INPUT_COLUMNS = ["lat", "lon", "region", "municipality", "mapped_crime_category", "occurrence_date"]
-# Per-coordinate context columns, then the high-traffic classification columns.
+# Per-coordinate context columns and the high-traffic classification columns.
 _CONTEXT_COLUMNS = ["lat", "lon", "incident_count", "regions", "top_category", "first_date", "last_date"]
-_CLASS_COLUMNS = ["anomaly_type", "nearest_location", "location_category"]
-_OUTPUT_COLUMNS = _CONTEXT_COLUMNS + _CLASS_COLUMNS
+_CLASS_COLUMNS = ["anomaly_type", "nearest_location", "location_category", "description"]
+# Final column order leads with the human-readable description + classification so
+# they head Kepler's hover tooltip (which shows a dataset's first few fields).
+_OUTPUT_COLUMNS = [
+    "lat", "lon", "description", "anomaly_type", "nearest_location", "location_category",
+    "incident_count", "top_category", "regions", "first_date", "last_date",
+]
 
 
 def _classify_row(lat: float, lon: float) -> pd.Series:
@@ -56,7 +65,15 @@ def _classify_row(lat: float, lon: float) -> pd.Series:
     match = classify_coordinate(lat, lon)
     if match is None:
         return pd.Series(
-            {"anomaly_type": "unexplained", "nearest_location": "", "location_category": ""}
+            {
+                "anomaly_type": "unexplained",
+                "nearest_location": "",
+                "location_category": "",
+                "description": (
+                    "Unexplained — no known high-traffic venue nearby; "
+                    "likely placeholder/snapped geocoding"
+                ),
+            }
         )
     loc, _dist = match
     return pd.Series(
@@ -64,6 +81,10 @@ def _classify_row(lat: float, lon: float) -> pd.Series:
             "anomaly_type": "high_traffic_area",
             "nearest_location": loc.name,
             "location_category": loc.category,
+            "description": (
+                f"High-traffic area — near {loc.name} ({loc.category}); "
+                "incidents are likely organic"
+            ),
         }
     )
 

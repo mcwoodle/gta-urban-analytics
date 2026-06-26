@@ -8,7 +8,10 @@ The five layers: (1) crime hexbin, (2) median-income choropleth, (3) crime-rate
 choropleth, (4) shooting → centroid arcs, and (5) a coordinate-anomaly overlay
 that marks placeholder/snapped points (> 200 incidents at one exact lat/lon) —
 coloured by class so anomalies near a known high-traffic venue (mall/hospital)
-read apart from unexplained ones (audit F-19).
+read apart from unexplained ones (audit F-19). Hovering an anomaly dot shows a
+plain-English `description` of its classification (plus `anomaly_type`,
+`nearest_location`, and `incident_count`), configured via `tooltips` in
+`src/config/visualization.ts`.
 
 ## Data prerequisite
 
