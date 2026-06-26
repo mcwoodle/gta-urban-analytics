@@ -9,8 +9,9 @@ import pandas as pd
 import gta_urban_analytics.transform.pipeline as pipe
 
 _DERIVED = [
-    "build_gta_census_geojson", "enrich_census_with_crime_rate", "build_shooting_arcs",
-    "build_coordinate_anomalies", "build_standalone_compact", "partition_all_years",
+    "build_gta_census_geojson", "enrich_census_with_crime_rate", "build_coverage_metadata",
+    "build_shooting_arcs", "build_coordinate_anomalies", "build_standalone_compact",
+    "partition_all_years",
 ]
 
 
@@ -28,6 +29,7 @@ def test_run_aborts_on_empty_unify(monkeypatch):
     monkeypatch.setattr(pipe, "verify_mappings", mock.Mock())
     monkeypatch.setattr(pipe, "filter_invalid_incidents", mock.Mock())
     monkeypatch.setattr(pipe, "deduplicate_incidents", mock.Mock())
+    monkeypatch.setattr(pipe, "assign_crime_group", mock.Mock())
     mocks = _patch_derived(monkeypatch)
 
     pipe.run()
@@ -45,6 +47,7 @@ def test_run_threads_transform_then_builds_derived(tmp_path, monkeypatch):
     monkeypatch.setattr(pipe, "verify_mappings", mock.Mock())
     monkeypatch.setattr(pipe, "filter_invalid_incidents", lambda d, verbose=True: d)
     monkeypatch.setattr(pipe, "deduplicate_incidents", lambda d, verbose=True: d)
+    monkeypatch.setattr(pipe, "assign_crime_group", lambda d: d)
     mocks = _patch_derived(monkeypatch)
 
     pipe.run()

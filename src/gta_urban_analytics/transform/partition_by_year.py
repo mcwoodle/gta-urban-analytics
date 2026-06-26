@@ -36,8 +36,13 @@ _project_root = os.path.normpath(
 def partition_all_years(verbose: bool = True) -> None:
     """Partition the full transformed dataset into per-year subfolders."""
     from gta_urban_analytics.transform.crime.build_shooting_arcs import build_shooting_arcs
-    from gta_urban_analytics.transform.census.enrich_with_crime_rate import enrich_census_with_crime_rate
+    from gta_urban_analytics.transform.census.enrich_with_crime_rate import (
+        enrich_census_with_crime_rate,
+        _BUCKET_COUNT_COLUMNS,
+        _BUCKET_RATE_COLUMNS,
+    )
     from gta_urban_analytics.transform.build_standalone_compact import build_standalone_compact
+    from gta_urban_analytics.transform.build_coverage_metadata import build_coverage_metadata
 
     transformed_dir = os.path.join(_project_root, "data", "02_transformed")
 
@@ -61,7 +66,15 @@ def partition_all_years(verbose: bool = True) -> None:
     census_gdf = gpd.read_file(
         os.path.join(transformed_dir, "gta_census_da.geojson")
     )
-    for col in ("crime_count", "crime_rate_per_1k", "bivariate_class", "bivariate_label"):
+    strip_cols = (
+        "crime_count",
+        "crime_rate_per_1k",
+        "bivariate_class",
+        "bivariate_label",
+        *_BUCKET_COUNT_COLUMNS,
+        *_BUCKET_RATE_COLUMNS,
+    )
+    for col in strip_cols:
         if col in census_gdf.columns:
             census_gdf = census_gdf.drop(columns=col)
 
@@ -112,6 +125,12 @@ def partition_all_years(verbose: bool = True) -> None:
         build_standalone_compact(source_dir=year_dir, verbose=False)
         if verbose:
             logger.info(f"  {year}: standalone/ compact variants built")
+
+        # 5. Per-year coverage metadata. Pass the ALL-years frame so the
+        # same-period-prior-year comparison can look at the preceding year.
+        build_coverage_metadata(crime_df=crime_df, year=year, output_dir=year_dir)
+        if verbose:
+            logger.info(f"  {year}: coverage.json")
 
     # Drop our temp column from the in-memory frame (defensive)
     if "_year" in crime_df.columns:

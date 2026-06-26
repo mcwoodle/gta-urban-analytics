@@ -19,7 +19,15 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
+from gta_urban_analytics.transform.crime.crime_groups import GROUP_SLUGS
+
 logger = logging.getLogger(__name__)
+
+# Per-bucket census columns this step emits (in addition to the total
+# crime_count / crime_rate_per_1k). Kept here so the idempotency drop-list and
+# the standalone-compact selection can both reference one source of truth.
+_BUCKET_COUNT_COLUMNS = [f"crime_count_{slug}" for slug in GROUP_SLUGS.values()]
+_BUCKET_RATE_COLUMNS = [f"crime_rate_{slug}_per_1k" for slug in GROUP_SLUGS.values()]
 
 _project_root = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
@@ -91,6 +99,48 @@ def _assign_bivariate(enriched: gpd.GeoDataFrame) -> None:
     ]
 
 
+def _assign_bucket_rates(
+    enriched: gpd.GeoDataFrame,
+    joined: gpd.GeoDataFrame,
+    pop: pd.Series,
+    too_small: pd.Series,
+) -> None:
+    """Add per-bucket ``crime_count_<slug>`` and ``crime_rate_<slug>_per_1k``.
+
+    For each of the 4 crime-group buckets, count this DA's incidents in that
+    bucket and divide by population for a per-1,000 rate, applying the SAME
+    small-population nulling (``too_small``) as the total. A DA with no
+    incidents in a bucket gets count 0 (rate 0, or null when too small). Because
+    every joined incident carries exactly one ``crime_group``, the four bucket
+    counts sum to the total ``crime_count`` for any DA above the threshold.
+
+    When ``joined`` lacks a ``crime_group`` column (bare lat/lon test fixtures),
+    every bucket is written as 0/null so the columns still exist downstream.
+    """
+    has_group = "crime_group" in joined.columns
+    for group, slug in GROUP_SLUGS.items():
+        count_col = f"crime_count_{slug}"
+        rate_col = f"crime_rate_{slug}_per_1k"
+
+        if has_group:
+            bucket = joined[joined["crime_group"] == group]
+            bucket_counts = (
+                bucket.groupby("DAUID").size().rename(count_col).reset_index()
+            )
+            merged = enriched[["DAUID"]].merge(bucket_counts, on="DAUID", how="left")
+            count = pd.Series(
+                merged[count_col].fillna(0).astype(int).to_numpy(),
+                index=enriched.index,
+            )
+        else:
+            count = pd.Series(0, index=enriched.index, dtype=int)
+
+        rate = count / pop * 1000
+        enriched[rate_col] = rate.where(~too_small)
+        # Null the per-bucket count for tiny DAs too, mirroring the total.
+        enriched[count_col] = count.where(~too_small, other=pd.NA)
+
+
 def enrich_census_with_crime_rate(
     crime_df: pd.DataFrame | None = None,
     census_gdf: gpd.GeoDataFrame | None = None,
@@ -133,13 +183,24 @@ def enrich_census_with_crime_rate(
 
     # Drop any prior enrichment columns so this step is safely idempotent
     # (re-running the pipeline shouldn't fail because the columns already exist).
-    for col in ("crime_count", "crime_rate_per_1k", "bivariate_class", "bivariate_label"):
+    drop_cols = (
+        "crime_count",
+        "crime_rate_per_1k",
+        "bivariate_class",
+        "bivariate_label",
+        *_BUCKET_COUNT_COLUMNS,
+        *_BUCKET_RATE_COLUMNS,
+    )
+    for col in drop_cols:
         if col in das.columns:
             das = das.drop(columns=col)
 
     # --- Load crime points ---
-    load_cols = ["lat", "lon"] + (["occurrence_date"] if reference_year is not None else [])
+    # crime_group drives the per-bucket rates. Include it when available, but
+    # guard so bare lat/lon fixtures (and older CSVs without the column) work.
+    base_cols = ["lat", "lon"] + (["occurrence_date"] if reference_year is not None else [])
     if crime_df is not None:
+        load_cols = base_cols + (["crime_group"] if "crime_group" in crime_df.columns else [])
         crime_points_df = crime_df[load_cols].dropna(subset=["lat", "lon"]).copy()
     else:
         crime_csv = os.path.join(
@@ -151,6 +212,8 @@ def enrich_census_with_crime_rate(
             )
         if verbose:
             logger.info("Loading unified crime points...")
+        available = pd.read_csv(crime_csv, nrows=0).columns
+        load_cols = base_cols + (["crime_group"] if "crime_group" in available else [])
         crime_points_df = pd.read_csv(
             crime_csv, usecols=load_cols, low_memory=False
         )
@@ -201,6 +264,10 @@ def enrich_census_with_crime_rate(
     enriched["crime_rate_per_1k"] = rate.where(~too_small)
     # Null the count as well for tiny DAs so tooltips don't mislead.
     enriched.loc[too_small, "crime_count"] = pd.NA
+
+    # Per-bucket counts + rates (Violent / Property / Nuisance / Other). Same
+    # reference-year window and small-population nulling as the total above.
+    _assign_bucket_rates(enriched, joined, pop, too_small)
 
     # Pre-bin each DA into a bivariate income × crime-rate class for the
     # bivariate-choropleth layer (all binning lives in the pipeline, not the viz).

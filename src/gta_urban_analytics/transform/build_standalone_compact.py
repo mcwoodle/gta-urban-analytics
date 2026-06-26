@@ -36,17 +36,20 @@ _project_root = os.path.normpath(
 # 20 m is invisible at the GTA-wide zoom the map renders at.
 _SIMPLIFY_TOLERANCE_M = 20
 
-# Columns the four Kepler layers actually need.
+# Columns the Kepler layers actually need. `crime_group` drives the crime-group
+# point layer + the bucket control.
 _COMPACT_CRIME_COLUMNS = [
     "lat",
     "lon",
     "mapped_crime_category",
+    "crime_group",
     "occurrence_date",
     "region",
 ]
 
-# Properties the census-backed choropleth layers use (income, crime-rate, and
-# the bivariate income × crime-rate classification).
+# Properties the census-backed choropleth layers use (income, crime-rate, the
+# bivariate income × crime-rate classification, and the 4 per-bucket rates +
+# counts that drive the crime-group choropleth recolor and honest tooltips).
 _COMPACT_CENSUS_PROPERTIES = [
     "DAUID",
     "Population",
@@ -55,6 +58,14 @@ _COMPACT_CENSUS_PROPERTIES = [
     "crime_rate_per_1k",
     "bivariate_class",
     "bivariate_label",
+    "crime_rate_violent_per_1k",
+    "crime_rate_property_per_1k",
+    "crime_rate_nuisance_per_1k",
+    "crime_rate_other_per_1k",
+    "crime_count_violent",
+    "crime_count_property",
+    "crime_count_nuisance",
+    "crime_count_other",
 ]
 
 

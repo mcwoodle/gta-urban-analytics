@@ -23,6 +23,13 @@ function urlForYear(url: string, year: number): string {
   return url.replace(/\/\d{4}\//, `/${year}/`);
 }
 
+/** URL of the per-year coverage.json (sits beside the per-year datasets). Built
+ *  off the first dataset's URL so the relative base matches the host page. */
+export function coverageUrlForYear(year: number): string {
+  const base = getVizConfig().datasets[0]?.url ?? '';
+  return urlForYear(base, year).replace(/[^/]+$/, 'coverage.json');
+}
+
 function parseByExtension(url: string, text: string): KeplerDataset['data'] {
   const result = /\.(geo)?json$/i.test(url)
     ? processGeojson(JSON.parse(text))

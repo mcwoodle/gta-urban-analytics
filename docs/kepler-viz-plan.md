@@ -578,3 +578,38 @@ Pipeline: `enrich_with_crime_rate.py` now also writes `bivariate_class` and
 knobs (`enable3d`/`elevationScale`/`heightRange`/`heightField`); the 3D density
 hexbin (Layer 1) now starts hidden so first paint leads with the bivariate map.
 All binning stays in the pipeline — the viz only renders the precomputed class.
+
+---
+
+## Addendum (2026-06-26) — Crime-type buckets + per-bucket choropleth
+
+Crime had been one undifferentiated mass with no way to view it by type. The
+pipeline now collapses the 15 canonical categories into **4 buckets**
+(`crime_group`: Violent / Property / Nuisance / Other — see
+`crime_groups.py` and `docs/normalization-strategy.md`) and the census
+enrichment emits a **per-bucket per-capita rate** for each Dissemination Area
+(`crime_rate_<slug>_per_1k` + `crime_count_<slug>`).
+
+Two new viz pieces drive both views from one control:
+
+- **`CrimeGroupControl.tsx`** (top-left overlay) — a segmented
+  **Total · Violent · Property · Nuisance · Other** selector. It MUTATES Kepler
+  state (the buckets are already-loaded columns; no data reload):
+  - **Mechanism B** recolours the hidden `crime_rate_choropleth` to the selected
+    bucket's `crime_rate_<slug>_per_1k` (resolving the real dataset `Field`
+    object, not a bare `{name,type}`) and hides the bivariate layer so the two
+    census choropleths never stack. `Total` restores the bivariate headline.
+  - **Mechanism A** filters the `crime_points` dataset to the chosen
+    `crime_group` (one lazily-created, idx-cached filter) and shows a new
+    `crime_by_group` point scatter (`CRIME_GROUP_COLORS`, ordered to Kepler's
+    alphabetical ordinal sort). `Total` removes the filter and hides the scatter
+    so first paint stays light (126k points only render on demand).
+- **`CrimeGroupLegend.tsx`** (bottom-right) — shows the active bucket's rate ramp
+  plus a **coverage caveat** sourced from `coverage.json` (`useCoverage` hook):
+  which regions report only a subset, and whether the year is YTD. Per-capita
+  bucket rates are structurally low for regions that never report a category, so
+  they are never shown without this caveat.
+
+Layer count: 7 → 8 (added `crime_by_group`). Both controls are gated to the
+`full` profile; the `lite` build and the standalone HTML (no embedded
+`coverage.json`) degrade gracefully.

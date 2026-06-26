@@ -15,6 +15,7 @@ def test_build_standalone_compact(tmp_path):
         {
             "lat": [43.123456789, None], "lon": [-79.987654321, None],
             "mapped_crime_category": ["Assault", "Theft"],
+            "crime_group": ["Violent", "Property"],
             "occurrence_date": ["2025-01-01", "2025-01-02"],
             "region": ["Toronto", "York"],
             "extra_col": ["x", "y"],  # must be dropped by the compact column selection
@@ -25,6 +26,10 @@ def test_build_standalone_compact(tmp_path):
         {
             "DAUID": ["1"], "Population": [1000], "Median_Income": [50000],
             "crime_count": [5], "crime_rate_per_1k": [5.0],
+            "crime_rate_violent_per_1k": [3.0], "crime_rate_property_per_1k": [2.0],
+            "crime_rate_nuisance_per_1k": [0.0], "crime_rate_other_per_1k": [0.0],
+            "crime_count_violent": [3], "crime_count_property": [2],
+            "crime_count_nuisance": [0], "crime_count_other": [0],
         },
         geometry=[Polygon([(-79.6, 43.6), (-79.5, 43.6), (-79.5, 43.7), (-79.6, 43.7)])],
         crs="EPSG:4326",
@@ -42,8 +47,20 @@ def test_build_standalone_compact(tmp_path):
     # NaN-coord row dropped; coords rounded to 5 dp; only the slim columns kept.
     assert len(crime) == 1
     assert crime.loc[0, "lat"] == 43.12346
-    assert set(crime.columns) == {"lat", "lon", "mapped_crime_category", "occurrence_date", "region"}
+    assert set(crime.columns) == {
+        "lat", "lon", "mapped_crime_category", "crime_group", "occurrence_date", "region"
+    }
     # Census compact + copied arcs + copied coordinate anomalies present.
     assert (out / "gta_census_da_compact.geojson").exists()
     assert (out / "shooting_arcs.csv").exists()
     assert (out / "coordinate_anomalies.csv").exists()
+
+    # Per-bucket rate + count columns survive into the compact census props.
+    census = gpd.read_file(out / "gta_census_da_compact.geojson")
+    for col in (
+        "crime_rate_violent_per_1k", "crime_rate_property_per_1k",
+        "crime_rate_nuisance_per_1k", "crime_rate_other_per_1k",
+        "crime_count_violent", "crime_count_property",
+        "crime_count_nuisance", "crime_count_other",
+    ):
+        assert col in census.columns

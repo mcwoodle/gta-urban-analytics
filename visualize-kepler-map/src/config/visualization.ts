@@ -84,6 +84,25 @@ export const BIVARIATE_INCOME_CRIME: ColorRangeSpec = {
   ]
 };
 
+// Qualitative palette for the 4 crime-group buckets. The buckets are an ordinal
+// string field (`crime_group`), so Kepler sorts the domain ALPHABETICALLY and
+// maps colours index-for-index against that sorted order — NOT the order written
+// here (same gotcha the ANOMALY_CLASS comment documents). Alphabetical order is:
+//   0 Nuisance · 1 Other · 2 Property · 3 Violent
+// so the array below is ordered to that, giving Violent=red, Property=amber,
+// Nuisance=teal, Other=grey.
+export const CRIME_GROUP_COLORS: ColorRangeSpec = {
+  name: 'Crime Group',
+  type: 'qualitative',
+  category: 'Custom',
+  colors: [
+    '#1FB8A6', // Nuisance — teal
+    '#9AA5B1', // Other    — grey
+    '#F1920E', // Property — amber
+    '#C70039'  // Violent  — red
+  ]
+};
+
 // --- The config -----------------------------------------------------------
 
 export const VIZ_CONFIG: VisualizationConfig = {
@@ -141,6 +160,34 @@ export const VIZ_CONFIG: VisualizationConfig = {
         opacity: 0.85,
         colorRange: GLOBAL_WARMING
       }
+    },
+
+    // -------------------------------------------------------------------
+    // Layer 1b — Crime points coloured by crime-group bucket
+    // -------------------------------------------------------------------
+    // Mechanism A of the crime-group control: a filtered scatter that shows
+    // WHERE the selected bucket (Violent/Property/Nuisance/Other) concentrates.
+    // Hidden by default — 126k points only render once a bucket is chosen, so
+    // first paint stays light. CrimeGroupControl filters `crime_points` to the
+    // active bucket and flips this visible. Placed early in the array so the
+    // dots draw ABOVE the census choropleths (Kepler draws index 0 on top).
+    {
+      kind: 'point',
+      id: 'crime_by_group',
+      label: 'Crime by Group',
+      dataId: 'crime_points',
+      isVisible: false,
+      columns: { lat: 'lat', lng: 'lon' },
+      visConfig: {
+        radius: 4,
+        opacity: 0.55,
+        filled: true,
+        colorRange: CRIME_GROUP_COLORS,
+        radiusRange: [1, 20],
+        fixedRadius: false
+      },
+      colorField: { name: 'crime_group', type: 'string' },
+      colorScale: 'ordinal'
     },
 
     // -------------------------------------------------------------------
@@ -307,14 +354,27 @@ export const VIZ_CONFIG: VisualizationConfig = {
       'regions'
     ],
     // Census DAs back the income, crime-rate, bivariate, and 3D layers. Lead
-    // with the plain-English bivariate label, then the raw values behind it.
+    // with the plain-English bivariate label, then the raw values behind it,
+    // then the per-bucket counts so the crime-group choropleth is honest.
     census_da: [
       'bivariate_label',
       'Median_Income',
       'crime_rate_per_1k',
       'crime_count',
+      'crime_count_violent',
+      'crime_count_property',
+      'crime_count_nuisance',
+      'crime_count_other',
       'Population',
       'DAUID'
+    ],
+    // Crime points back the hexbin + the crime-group scatter. Lead with the
+    // bucket so a hovered incident reads as its high-level group + raw type.
+    crime_points: [
+      'crime_group',
+      'mapped_crime_category',
+      'region',
+      'occurrence_date'
     ]
   },
 

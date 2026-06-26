@@ -1,15 +1,29 @@
 # GTA Urban Analytics — Kepler.gl Visualization
 
-A seven-layer Kepler.gl map of GTA crime + census data, driven from a single
+An eight-layer Kepler.gl map of GTA crime + census data, driven from a single
 typed config file (`src/config/visualization.ts`) so layer choice and styling
 can be tweaked without touching React code.
 
-The seven layers: (1) crime hexbin, (2) median-income choropleth, (3) crime-rate
-choropleth, (4) shooting → centroid arcs, (5) a coordinate-anomaly overlay that
-marks placeholder/snapped points (> 500 incidents at one exact lat/lon) —
-coloured by class so anomalies near a known high-traffic venue (mall/hospital)
-read apart from unexplained ones (audit F-19), **(6) an income × crime-rate
-bivariate choropleth**, and **(7) a 3D crime-rate-by-population extrusion**.
+The eight layers: (1) crime hexbin, (1b) a crime-group point scatter coloured by
+bucket, (2) median-income choropleth, (3) crime-rate choropleth, (4) shooting →
+centroid arcs, (5) a coordinate-anomaly overlay that marks placeholder/snapped
+points (> 500 incidents at one exact lat/lon) — coloured by class so anomalies
+near a known high-traffic venue (mall/hospital) read apart from unexplained ones
+(audit F-19), **(6) an income × crime-rate bivariate choropleth**, and **(7) a 3D
+crime-rate-by-population extrusion**.
+
+**Crime-type buckets.** The pipeline collapses the 15 canonical categories into
+4 buckets — Violent / Property / Nuisance / Other (`crime_group`) — and computes
+a per-capita rate per bucket per Dissemination Area. The `CrimeGroupControl`
+overlay (top-left) is a segmented Total · Violent · Property · Nuisance · Other
+selector that (A) filters the crime-point scatter to the chosen bucket and (B)
+recolours the per-capita rate choropleth by that bucket's `crime_rate_<slug>_per_1k`.
+`Total` restores the bivariate headline view. A `CrimeGroupLegend` (bottom-right)
+shows the active rate ramp plus a coverage caveat sourced from `coverage.json`,
+because regions cover different time spans and report different category subsets,
+and the current year is year-to-date — so bucket rates must always be read with
+that caveat. All bucketing lives in the Python pipeline; the viz only renders
+and filters.
 
 **Layers 6 and 7 show how crime rate relates to census data.** Layer 6 is the
 default view: each Dissemination Area is coloured from a 3×3 bivariate palette
@@ -41,9 +55,10 @@ uv run full-pipeline    # or: uv run transform
 
 After this completes, `data/02_transformed/` contains every file the viz
 needs, including the enriched census GeoJSON (with `crime_count`,
-`crime_rate_per_1k`, and the bivariate `bivariate_class` / `bivariate_label`),
-`shooting_arcs.csv`, and the compact variants under `standalone/` that the
-single-file HTML build embeds.
+`crime_rate_per_1k`, the bivariate `bivariate_class` / `bivariate_label`, and the
+4 per-bucket `crime_rate_<slug>_per_1k` / `crime_count_<slug>` columns),
+`coverage.json` (per-region/per-year coverage metadata), `shooting_arcs.csv`, and
+the compact variants under `standalone/` that the single-file HTML build embeds.
 
 ## Setup
 
@@ -103,18 +118,23 @@ src/
 │   ├── types.ts              # discriminated union of layer specs
 │   ├── loaders.ts            # fetch-based loader; forks to standalone
 │   └── standaloneLoader.ts   # base64 + gzip decoder for embedded data
+├── config/crimeGroups.ts     # bucket slugs + colours (mirrors Python source)
 ├── layers/
 │   ├── index.ts              # buildLayers() dispatcher
 │   ├── hexbinLayer.ts        # Layer 1
 │   ├── geojsonLayer.ts       # Layers 2, 3, 6 (flat) + 7 (3D extrusion)
 │   ├── arcLayer.ts           # Layer 4
-│   └── pointLayer.ts         # Layer 5 (coordinate anomalies)
+│   └── pointLayer.ts         # Layer 5 (anomalies) + Layer 1b (crime-by-group)
 ├── components/
 │   ├── MapShell.tsx          # load + dispatch wiring
 │   ├── RadiusControl.tsx     # custom debounced slider
 │   ├── YearControl.tsx       # data-year selector
-│   └── BivariateLegend.tsx   # 3×3 income × crime-rate key (Layer 6)
-├── hooks/useHexbinLayer.ts
+│   ├── BivariateLegend.tsx   # 3×3 income × crime-rate key (Layer 6)
+│   ├── CrimeGroupControl.tsx # Total/Violent/Property/Nuisance/Other selector
+│   └── CrimeGroupLegend.tsx  # active rate ramp + coverage caveat
+├── hooks/
+│   ├── useHexbinLayer.ts     # layer/dataset/filter selectors
+│   └── useCoverage.ts        # fetches per-year coverage.json
 ├── store.ts                  # Redux + taskMiddleware
 └── app.tsx                   # ReactDOM mount
 ```

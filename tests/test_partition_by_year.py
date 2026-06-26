@@ -57,3 +57,8 @@ def test_partition_creates_year_folders_and_excludes_undated(tmp_path, monkeypat
             assert "c" not in set(pd.read_csv(f)["source_identifier"])
     # Per-year census enrichment ran for each populated year (2024, 2025).
     assert enrich.call_count == 2
+
+    # Each populated year folder gets its own coverage.json (real call, not
+    # mocked — it reads the frame the partitioner passes it).
+    assert (transformed / "2024" / "coverage.json").exists()
+    assert (transformed / "2025" / "coverage.json").exists()
