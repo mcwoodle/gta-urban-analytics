@@ -16,6 +16,7 @@ import os
 import logging
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,60 @@ _MIN_POPULATION_FOR_RATE = 50
 # computed over 2025 only (audit F-04). Per-year partition folders keep their own
 # single-year rates and pass reference_year=None. Revisit as the data grows.
 REFERENCE_YEAR = 2025
+
+# --- Bivariate income × crime-rate classification --------------------------
+# A bivariate choropleth needs each DA pre-binned into one of 9 classes
+# (income tercile × crime-rate tercile). ALL binning happens here in the
+# pipeline; the Kepler layer only renders the resulting class. Class index
+# k = income_tercile * 3 + rate_tercile (income outer, 0=Lower..2=Higher), then
+# encoded as letters A..I so the value is unambiguously categorical (Kepler's
+# ordinal colour scale sorts A..I in class order and maps a 9-colour 3×3 palette
+# index-for-index). `bivariate_label` carries the human-readable description.
+_TERCILE_WORDS = ("Lower", "Mid", "Higher")
+_BIVARIATE_LETTERS = "ABCDEFGHI"  # 9 classes, A (class 0) … I (class 8)
+
+
+def _terciles(values: pd.Series) -> pd.Series:
+    """Bin non-null values into 0/1/2 terciles (NaN preserved as NaN).
+
+    Cut points are the 1/3 and 2/3 sample quantiles, so each bin holds roughly
+    a third of the DAs. Robust to ties and tiny inputs — degenerate quantiles
+    merely collapse bins; nothing raises.
+    """
+    out = pd.Series(np.nan, index=values.index, dtype="float64")
+    numeric = pd.to_numeric(values, errors="coerce")
+    valid = numeric.dropna()
+    if valid.empty:
+        return out
+    q1, q2 = valid.quantile([1 / 3, 2 / 3])
+    out.loc[valid.index] = np.digitize(valid.to_numpy(), [q1, q2]).astype(float)
+    return out
+
+
+def _assign_bivariate(enriched: gpd.GeoDataFrame) -> None:
+    """Add `bivariate_class` (A..I) and `bivariate_label` columns in place.
+
+    A DA is classified only when it has BOTH a median income and a crime rate;
+    otherwise both columns are None (Kepler renders the polygon transparent).
+    """
+    if "Median_Income" in enriched.columns:
+        income_t = _terciles(enriched["Median_Income"])
+    else:
+        income_t = pd.Series(np.nan, index=enriched.index, dtype="float64")
+    rate_t = _terciles(enriched["crime_rate_per_1k"])
+
+    both = income_t.notna() & rate_t.notna()
+    class_idx = (income_t * 3 + rate_t).where(both)
+
+    enriched["bivariate_class"] = [
+        _BIVARIATE_LETTERS[int(k)] if pd.notna(k) else None for k in class_idx
+    ]
+    enriched["bivariate_label"] = [
+        f"{_TERCILE_WORDS[int(i)]}-income · {_TERCILE_WORDS[int(r)]}-crime"
+        if b
+        else None
+        for i, r, b in zip(income_t, rate_t, both)
+    ]
 
 
 def enrich_census_with_crime_rate(
@@ -78,7 +133,7 @@ def enrich_census_with_crime_rate(
 
     # Drop any prior enrichment columns so this step is safely idempotent
     # (re-running the pipeline shouldn't fail because the columns already exist).
-    for col in ("crime_count", "crime_rate_per_1k"):
+    for col in ("crime_count", "crime_rate_per_1k", "bivariate_class", "bivariate_label"):
         if col in das.columns:
             das = das.drop(columns=col)
 
@@ -147,6 +202,10 @@ def enrich_census_with_crime_rate(
     # Null the count as well for tiny DAs so tooltips don't mislead.
     enriched.loc[too_small, "crime_count"] = pd.NA
 
+    # Pre-bin each DA into a bivariate income × crime-rate class for the
+    # bivariate-choropleth layer (all binning lives in the pipeline, not the viz).
+    _assign_bivariate(enriched)
+
     # Overwrite the census file in place.
     os.makedirs(output_dir, exist_ok=True)
     if verbose:
@@ -158,11 +217,13 @@ def enrich_census_with_crime_rate(
 
     if verbose:
         valid = enriched["crime_rate_per_1k"].dropna()
+        n_biv = enriched["bivariate_class"].notna().sum()
         logger.info(
             f"Enriched {len(enriched):,} DAs. "
             f"crime_rate_per_1k: median={valid.median():.2f}, "
             f"max={valid.max():.2f}, "
-            f"n_valid={len(valid):,}."
+            f"n_valid={len(valid):,}. "
+            f"bivariate_class assigned to {n_biv:,} DAs."
         )
 
     return enriched

@@ -77,6 +77,9 @@ export function validateColorFields(datasets: KeplerDataset[]): void {
     if ('sizeField' in layer && layer.sizeField) {
       referenced.push({ role: 'sizeField', name: layer.sizeField.name });
     }
+    if ('heightField' in layer && layer.heightField) {
+      referenced.push({ role: 'heightField', name: layer.heightField.name });
+    }
 
     for (const ref of referenced) {
       if (!fields.has(ref.name)) {

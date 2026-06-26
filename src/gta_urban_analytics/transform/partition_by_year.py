@@ -61,7 +61,7 @@ def partition_all_years(verbose: bool = True) -> None:
     census_gdf = gpd.read_file(
         os.path.join(transformed_dir, "gta_census_da.geojson")
     )
-    for col in ("crime_count", "crime_rate_per_1k"):
+    for col in ("crime_count", "crime_rate_per_1k", "bivariate_class", "bivariate_label"):
         if col in census_gdf.columns:
             census_gdf = census_gdf.drop(columns=col)
 

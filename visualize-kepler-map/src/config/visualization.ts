@@ -64,6 +64,26 @@ const ANOMALY_CLASS: ColorRangeSpec = {
   colors: ['#FFB000', '#E5007A']
 };
 
+// 3×3 bivariate palette for the income × crime-rate layer. The pipeline pre-bins
+// each DA into class A..I = income tercile (outer, Lower→Higher) × crime-rate
+// tercile (inner, Lower→Higher); Kepler's ordinal scale sorts A..I and maps these
+// nine colours index-for-index. Joshua Stevens' two-hue scheme reads as:
+//   • light grey  (A) = lower income · lower crime   — unremarkable
+//   • strong red  (C) = lower income · HIGHER crime  — disadvantaged & high-crime
+//   • teal/blue   (G) = higher income · lower crime  — affluent & safe
+//   • dark slate  (I) = higher income · higher crime — affluent but high-crime
+// Keep this array in exact A→I order; it is the legend's source of truth too.
+export const BIVARIATE_INCOME_CRIME: ColorRangeSpec = {
+  name: 'Income × Crime (bivariate 3×3)',
+  type: 'qualitative',
+  category: 'Custom',
+  colors: [
+    '#e8e8e8', '#e4acac', '#c85a5a', // A B C — lower income  · lower/mid/higher crime
+    '#b0d5df', '#ad9ea5', '#985356', // D E F — mid income    · lower/mid/higher crime
+    '#64acbe', '#627f8c', '#574249'  // G H I — higher income · lower/mid/higher crime
+  ]
+};
+
 // --- The config -----------------------------------------------------------
 
 export const VIZ_CONFIG: VisualizationConfig = {
@@ -108,7 +128,10 @@ export const VIZ_CONFIG: VisualizationConfig = {
       id: 'crime_hex',
       label: 'Crime Hexbin',
       dataId: 'crime_points',
-      isVisible: true,
+      // Hidden by default so first paint leads with the bivariate income×crime
+      // choropleth (the headline relationship). One toggle in Kepler's panel
+      // brings the 3D density hexbin back.
+      isVisible: false,
       columns: { lat: 'lat', lng: 'lon' },
       visConfig: {
         worldUnitSize: 0.2, // km, per spec; adjustable via the radius slider
@@ -212,6 +235,60 @@ export const VIZ_CONFIG: VisualizationConfig = {
       colorScale: 'ordinal',
       sizeField: { name: 'incident_count', type: 'integer' },
       sizeScale: 'sqrt'
+    },
+
+    // -------------------------------------------------------------------
+    // Layer 6 — Income × Crime-Rate Bivariate Choropleth  (★ headline)
+    // -------------------------------------------------------------------
+    // Answers "how does crime rate vary with income?" in ONE view. Each DA is
+    // pre-binned by the pipeline into class A..I (income tercile × crime-rate
+    // tercile) and coloured from BIVARIATE_INCOME_CRIME. Visible by default;
+    // appended last so it renders BELOW the anomaly dots (Kepler draws the first
+    // array entry on top). See BivariateLegend.tsx for the 3×3 key.
+    {
+      kind: 'geojson',
+      id: 'income_crime_bivariate',
+      label: 'Income × Crime Rate (bivariate)',
+      dataId: 'census_da',
+      isVisible: true,
+      visConfig: {
+        opacity: 0.8,
+        filled: true,
+        stroked: true,
+        strokeColor: [25, 25, 25],
+        strokeOpacity: 0.2,
+        colorRange: BIVARIATE_INCOME_CRIME
+      },
+      colorField: { name: 'bivariate_class', type: 'string' },
+      colorScale: 'ordinal'
+    },
+
+    // -------------------------------------------------------------------
+    // Layer 7 — Crime Rate (colour) × Population (3D height)
+    // -------------------------------------------------------------------
+    // The other half of the question: crime rate *with respect to population*.
+    // Colour = per-capita crime rate (warm = high); bar height = residents, so a
+    // tall warm bar = many people AND high per-capita crime, while a tall cool
+    // bar = a dense-but-safe neighbourhood. Hidden by default (3D; toggle on).
+    {
+      kind: 'geojson',
+      id: 'crime_rate_by_population_3d',
+      label: 'Crime Rate × Population (3D)',
+      dataId: 'census_da',
+      isVisible: false,
+      visConfig: {
+        opacity: 0.85,
+        filled: true,
+        stroked: false,
+        colorRange: GLOBAL_WARMING,
+        enable3d: true,
+        elevationScale: 6,
+        heightRange: [0, 1200]
+      },
+      colorField: { name: 'crime_rate_per_1k', type: 'real' },
+      colorScale: 'quantile',
+      heightField: { name: 'Population', type: 'integer' },
+      heightScale: 'sqrt'
     }
   ],
 
@@ -228,6 +305,16 @@ export const VIZ_CONFIG: VisualizationConfig = {
       'incident_count',
       'top_category',
       'regions'
+    ],
+    // Census DAs back the income, crime-rate, bivariate, and 3D layers. Lead
+    // with the plain-English bivariate label, then the raw values behind it.
+    census_da: [
+      'bivariate_label',
+      'Median_Income',
+      'crime_rate_per_1k',
+      'crime_count',
+      'Population',
+      'DAUID'
     ]
   },
 

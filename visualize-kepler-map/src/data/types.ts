@@ -73,9 +73,17 @@ export interface GeoJsonLayerSpec extends BaseLayerSpec {
     strokeColor?: [number, number, number];
     strokeOpacity?: number;
     colorRange: ColorRangeSpec;
+    /** Extrude polygons in 3D, with bar height encoding `heightField`.
+     *  Omit (or false) for a flat choropleth. */
+    enable3d?: boolean;
+    elevationScale?: number;
+    heightRange?: [number, number];
   };
   colorField: FieldSpec;
   colorScale: string;
+  /** Optional 3D height channel (only meaningful when visConfig.enable3d). */
+  heightField?: FieldSpec;
+  heightScale?: string;
 }
 
 export interface ArcLayerSpec extends BaseLayerSpec {
