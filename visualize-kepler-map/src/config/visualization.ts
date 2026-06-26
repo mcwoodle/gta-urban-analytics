@@ -183,7 +183,7 @@ export const VIZ_CONFIG: VisualizationConfig = {
     // -------------------------------------------------------------------
     // Layer 5 — Coordinate Anomalies (placeholder / snapped points)
     // -------------------------------------------------------------------
-    // Flags coordinates carrying an implausible number of incidents (> 200) at
+    // Flags coordinates carrying an implausible number of incidents (> 500) at
     // one exact lat/lon (source-side address/centroid snapping — audit F-19).
     // Sized by incident_count; COLOURED by anomaly_type so the two classes
     // separate: amber = near a known high-traffic venue (mall/hospital — partly
@@ -203,7 +203,7 @@ export const VIZ_CONFIG: VisualizationConfig = {
         opacity: 0.6,
         filled: true,
         colorRange: ANOMALY_CLASS,
-        radiusRange: [6, 36],
+        radiusRange: [10, 150],
         fixedRadius: false,
         outline: true,
         thickness: 1.5

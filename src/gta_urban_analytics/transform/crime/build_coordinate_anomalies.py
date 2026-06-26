@@ -46,7 +46,7 @@ _project_root = os.path.normpath(
 # A single identical full-precision coordinate carrying MORE THAN this many
 # incidents is treated as a placeholder/snapped location rather than an organic
 # hotspot. Tunable — inspect the output and adjust per the data distribution.
-_ANOMALY_MIN_INCIDENTS_PER_COORD = 200
+_ANOMALY_MIN_INCIDENTS_PER_COORD = 500
 
 _INPUT_COLUMNS = ["lat", "lon", "region", "municipality", "mapped_crime_category", "occurrence_date"]
 # Per-coordinate context columns and the high-traffic classification columns.

@@ -224,7 +224,7 @@ dedup.)
   dedup key. Relates to F-02 (real vs artificial hotspots) and F-04.
 - **Status:** ✅ **Decision: keep data intact + separate anomaly layer.** New
   `build_coordinate_anomalies.py` (pipeline step) writes `coordinate_anomalies.csv` — coordinates with
-  **> 200** incidents at one identical point (tightened from the initial ≥50 cut; tunable threshold).
+  **> 500** incidents at one identical point (tightened from the initial ≥50 cut; tunable threshold).
   Incidents stay in all counts/rates. Each flagged coordinate is classified against a curated list of
   high-foot-traffic GTA venues (`high_traffic_locations.py` — malls, hospitals, attractions, transit):
   `anomaly_type = "high_traffic_area"` when within 500 m of a venue (an at-least-partly organic hotspot)
@@ -526,6 +526,7 @@ nothing outstanding.
 | 2026-06-24 | **F-19 viz**: wired `coordinate_anomalies.csv` into the Kepler map as Layer 5 (magenta `point`, sized/coloured by `incident_count`); extended `PointLayerSpec`/`buildPointLayer`; embedded in the standalone build (`standaloneLoader` + `build-standalone.mjs` + `build_standalone_compact` copy). | F-19 | `tsc --noEmit` + `yarn build:standalone` green |
 | 2026-06-24 | **F-19 refine**: tightened the anomaly cut to **> 200** incidents/coord; added `high_traffic_locations.py` (curated GTA malls/hospitals/attractions/transit) + per-coord classification → new `anomaly_type` / `nearest_location` / `location_category` columns; Layer 5 now colours by `anomaly_type` (amber high-traffic vs magenta unexplained); refreshed viz README to 5 layers. | F-19 | `test_high_traffic_locations.py` + `test_coordinate_anomalies.py` (48 passed) · `tsc --noEmit` clean |
 | 2026-06-26 | **F-19 hover legibility**: anomaly classification was invisible on hover (Kepler's tooltip defaults to a dataset's first 5 columns). Added a plain-English `description` column (now leading the CSV column order) + pinned the anomaly layer's tooltip fields via `tooltips.coordinate_anomalies` in `visualization.ts` (threaded through `MapShell`). Hovering a dot now explains its classification. | F-19 | `test_coordinate_anomalies.py` (48 passed) · `tsc --noEmit` + `yarn build:all` green |
+| 2026-06-26 | **F-19 tuning**: raised the anomaly threshold to **> 500** incidents/coord (from 200) and widened the Layer 5 point `radiusRange` to `[10, 150]` so the dots scale more visibly with `incident_count`. | F-19 | regenerated `coordinate_anomalies.csv` · `yarn build:all` green |
 
 **Note for whoever continues:** the data products under `data/02_transformed/` were **regenerated green
 on 2026-06-23** with all fixes applied, so they are current. Re-run `uv run transform` after any future
