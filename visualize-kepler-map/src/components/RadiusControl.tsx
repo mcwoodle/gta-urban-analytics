@@ -47,7 +47,7 @@ export function RadiusControl(): JSX.Element | null {
     <div
       style={{
         position: 'absolute',
-        top: 16,
+        top: 104,
         left: 340,
         zIndex: 100,
         background: 'rgba(41, 50, 60, 0.92)',

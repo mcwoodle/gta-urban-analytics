@@ -1,16 +1,27 @@
 # GTA Urban Analytics — Kepler.gl Visualization
 
-An eight-layer Kepler.gl map of GTA crime + census data, driven from a single
+A nine-layer Kepler.gl map of GTA crime + census data, driven from a single
 typed config file (`src/config/visualization.ts`) so layer choice and styling
 can be tweaked without touching React code.
 
-The eight layers: (1) crime hexbin, (1b) a crime-group point scatter coloured by
+The layers: (1) crime hexbin, (1b) a crime-group point scatter coloured by
 bucket, (2) median-income choropleth, (3) crime-rate choropleth, (4) shooting →
 centroid arcs, (5) a coordinate-anomaly overlay that marks placeholder/snapped
 points (> 500 incidents at one exact lat/lon) — coloured by class so anomalies
 near a known high-traffic venue (mall/hospital) read apart from unexplained ones
-(audit F-19), **(6) an income × crime-rate bivariate choropleth**, and **(7) a 3D
-crime-rate-by-population extrusion**.
+(audit F-19), **(6) an income × crime-rate bivariate choropleth**, **(7) a 3D
+crime-rate-by-population extrusion**, and **(8) a 3D crime-rate-by-municipality
+choropleth — the simple default view**.
+
+**Municipality view (default).** Layer 8 is the only layer visible on first
+paint: one polygon per GTA municipality (Toronto, Newmarket, Aurora, Vaughan, …)
+where **both colour and bar height encode the per-capita crime rate**. A
+`MunicipalityControl` (top-left) is a **Total + Violent/Property/Nuisance/Other**
+multi-select — picking a subset shows the summed per-capita rate of those groups
+(rates are additive over a shared population). The municipality dataset is tiny
+(~30 polygons, dissolved from the census DAs in the pipeline), so the control
+recomputes the rate client-side and replaces the dataset instantly. The left
+layer panel is **expanded by default** so every layer is one toggle away.
 
 **Crime-type buckets.** The pipeline collapses the 15 canonical categories into
 4 buckets — Violent / Property / Nuisance / Other (`crime_group`) — and computes
@@ -131,7 +142,8 @@ src/
 │   ├── YearControl.tsx       # data-year selector
 │   ├── BivariateLegend.tsx   # 3×3 income × crime-rate key (Layer 6)
 │   ├── CrimeGroupControl.tsx # Total/Violent/Property/Nuisance/Other selector
-│   └── CrimeGroupLegend.tsx  # active rate ramp + coverage caveat
+│   ├── CrimeGroupLegend.tsx  # active rate ramp + coverage caveat
+│   └── MunicipalityControl.tsx # Total + multi-select buckets (Layer 8)
 ├── hooks/
 │   ├── useHexbinLayer.ts     # layer/dataset/filter selectors
 │   └── useCoverage.ts        # fetches per-year coverage.json

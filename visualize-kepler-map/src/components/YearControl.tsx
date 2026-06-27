@@ -21,7 +21,7 @@ export function YearControl({
       style={{
         position: 'absolute',
         top: 16,
-        left: 600, // Placed to the right of the RadiusControl
+        right: 16, // top-right corner, clear of the left-side control stack
         zIndex: 100,
         background: 'rgba(41, 50, 60, 0.92)',
         color: '#e6e6e6',

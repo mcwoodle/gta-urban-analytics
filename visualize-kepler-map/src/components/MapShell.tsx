@@ -33,6 +33,7 @@ import { YearControl } from './YearControl';
 import { BivariateLegend } from './BivariateLegend';
 import { CrimeGroupControl } from './CrimeGroupControl';
 import { CrimeGroupLegend } from './CrimeGroupLegend';
+import { MunicipalityControl } from './MunicipalityControl';
 
 // react-virtualized ships its own (pre-18) React types, so its AutoSizer class
 // fails @types/react@18's `ElementClass` check when used as JSX. Re-type it as
@@ -122,13 +123,13 @@ export function MapShell(): JSX.Element {
 
         setLoaded(true);
 
-        // Collapse the left side panel by default — but only AFTER the first
-        // load has rendered. Baking `activeSidePanel: null` into the initial
-        // store state changes the very-first map layout and leaves the
-        // deck.gl HeatmapLayer (mobile profile) stuck un-aggregated/blank.
-        // Letting the map paint with the panel open, then collapsing, lets the
-        // heatmap aggregate first; the collapse-driven resize keeps it painted.
-        if (isInitial) {
+        // Lite profile only: collapse the left side panel after first paint.
+        // Baking `activeSidePanel: null` into the initial store state leaves the
+        // deck.gl HeatmapLayer stuck un-aggregated/blank; letting the map paint
+        // with the panel open then collapsing lets it aggregate first. The full
+        // profile keeps the panel EXPANDED by default so the layer list (incl.
+        // the municipality layer) is visible immediately.
+        if (isInitial && getProfile() === 'lite') {
           setTimeout(() => {
             if (!cancelled) dispatch(forward(toggleSidePanel(null as any) as any));
           }, 700);
@@ -189,6 +190,7 @@ export function MapShell(): JSX.Element {
       </AutoSizer>
       {loaded ? (
         <>
+          {getProfile() !== 'lite' && <MunicipalityControl year={year} />}
           {getProfile() !== 'lite' && <RadiusControl />}
           {getProfile() !== 'lite' && <BivariateLegend />}
           {getProfile() !== 'lite' && <CrimeGroupControl />}

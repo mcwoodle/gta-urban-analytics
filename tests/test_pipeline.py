@@ -9,7 +9,8 @@ import pandas as pd
 import gta_urban_analytics.transform.pipeline as pipe
 
 _DERIVED = [
-    "build_gta_census_geojson", "enrich_census_with_crime_rate", "build_coverage_metadata",
+    "build_gta_census_geojson", "enrich_census_with_crime_rate",
+    "build_municipality_choropleth", "build_coverage_metadata",
     "build_shooting_arcs", "build_coordinate_anomalies", "build_standalone_compact",
     "partition_all_years",
 ]

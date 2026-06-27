@@ -135,6 +135,14 @@ export const VIZ_CONFIG: VisualizationConfig = {
       // has no year segment and stays constant across year changes.
       url: '../../data/02_transformed/coordinate_anomalies.csv',
       visible: true
+    },
+    {
+      id: 'municipalities',
+      label: 'Crime Rate by Municipality',
+      // One polygon per GTA municipality (dissolved DAs) with total + per-bucket
+      // per-capita rates. The headline simple view.
+      url: '../../data/02_transformed/2025/gta_municipalities.geojson',
+      visible: true
     }
   ],
 
@@ -266,7 +274,7 @@ export const VIZ_CONFIG: VisualizationConfig = {
       id: 'coordinate_anomalies',
       label: 'Coordinate Anomalies (placeholder/snapped)',
       dataId: 'coordinate_anomalies',
-      isVisible: true,
+      isVisible: false, // hidden by default — municipality layer leads first paint
       columns: { lat: 'lat', lng: 'lon' },
       visConfig: {
         radius: 20,
@@ -297,7 +305,7 @@ export const VIZ_CONFIG: VisualizationConfig = {
       id: 'income_crime_bivariate',
       label: 'Income × Crime Rate (bivariate)',
       dataId: 'census_da',
-      isVisible: true,
+      isVisible: false, // hidden by default — municipality layer leads first paint
       visConfig: {
         opacity: 0.8,
         filled: true,
@@ -336,6 +344,38 @@ export const VIZ_CONFIG: VisualizationConfig = {
       colorScale: 'quantile',
       heightField: { name: 'Population', type: 'integer' },
       heightScale: 'sqrt'
+    },
+
+    // -------------------------------------------------------------------
+    // Layer 8 — Crime Rate by Municipality (3D)  (★ headline / default)
+    // -------------------------------------------------------------------
+    // The simple view: one polygon per GTA municipality (Toronto, Newmarket,
+    // Aurora, …) where BOTH colour and bar height encode the per-capita crime
+    // rate. `selected_rate` starts as the total rate; the MunicipalityControl
+    // recomputes it client-side when the user picks a subset of the 4 crime
+    // groups (per-group rates are additive over a shared population). This is
+    // the only layer visible by default.
+    {
+      kind: 'geojson',
+      id: 'municipality_crime_3d',
+      label: 'Crime Rate by Municipality (3D)',
+      dataId: 'municipalities',
+      isVisible: true,
+      visConfig: {
+        opacity: 0.85,
+        filled: true,
+        stroked: true,
+        strokeColor: [255, 255, 255],
+        strokeOpacity: 0.4,
+        colorRange: GLOBAL_WARMING,
+        enable3d: true,
+        elevationScale: 25,
+        heightRange: [0, 4000]
+      },
+      colorField: { name: 'selected_rate', type: 'real' },
+      colorScale: 'quantize',
+      heightField: { name: 'selected_rate', type: 'real' },
+      heightScale: 'linear'
     }
   ],
 
@@ -375,6 +415,19 @@ export const VIZ_CONFIG: VisualizationConfig = {
       'mapped_crime_category',
       'region',
       'occurrence_date'
+    ],
+    // Municipality choropleth — lead with the currently-selected rate, then the
+    // total + per-bucket breakdown behind it.
+    municipalities: [
+      'municipality',
+      'selected_rate',
+      'crime_rate_per_1k',
+      'crime_count',
+      'crime_rate_violent_per_1k',
+      'crime_rate_property_per_1k',
+      'crime_rate_nuisance_per_1k',
+      'crime_rate_other_per_1k',
+      'Population'
     ]
   },
 

@@ -139,7 +139,7 @@ export function CrimeGroupControl(): JSX.Element | null {
     <div
       style={{
         position: 'absolute',
-        top: 64,
+        top: 168,
         left: 340,
         zIndex: 100,
         background: 'rgba(41, 50, 60, 0.92)',

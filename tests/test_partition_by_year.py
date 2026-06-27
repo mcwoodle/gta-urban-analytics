@@ -43,6 +43,10 @@ def test_partition_creates_year_folders_and_excludes_undated(tmp_path, monkeypat
         "gta_urban_analytics.transform.census.enrich_with_crime_rate.enrich_census_with_crime_rate", enrich
     )
     monkeypatch.setattr(
+        "gta_urban_analytics.transform.census.build_municipality_choropleth.build_municipality_choropleth",
+        mock.Mock(),
+    )
+    monkeypatch.setattr(
         "gta_urban_analytics.transform.build_standalone_compact.build_standalone_compact", mock.Mock()
     )
 

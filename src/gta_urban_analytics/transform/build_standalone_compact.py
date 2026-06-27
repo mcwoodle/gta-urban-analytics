@@ -148,6 +148,16 @@ def build_standalone_compact(source_dir: str | None = None, verbose: bool = True
         logger.info(f"Writing {len(census):,} DAs to {census_out}")
     census.to_file(census_out, driver="GeoJSON")
 
+    # --- Municipality choropleth (copy unchanged; already simplified + tiny) ---
+    muni_src = os.path.join(source_dir, "gta_municipalities.geojson")
+    if os.path.exists(muni_src):
+        muni_out = os.path.join(out_dir, "gta_municipalities_compact.geojson")
+        if verbose:
+            logger.info(f"Copying municipality choropleth to {muni_out}")
+        shutil.copyfile(muni_src, muni_out)
+    else:
+        logger.warning(f"Missing {muni_src}; standalone build will lack the municipality layer.")
+
     # --- Shooting arcs (copy unchanged) ---
     arcs_src = os.path.join(source_dir, "shooting_arcs.csv")
     arcs_out = os.path.join(out_dir, "shooting_arcs.csv")

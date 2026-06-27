@@ -613,3 +613,34 @@ Two new viz pieces drive both views from one control:
 Layer count: 7 → 8 (added `crime_by_group`). Both controls are gated to the
 `full` profile; the `lite` build and the standalone HTML (no embedded
 `coverage.json`) degrade gracefully.
+
+---
+
+## Addendum (2026-06-26) — Municipality crime-rate view (the simple default)
+
+A much simpler headline than the ~8,500 DAs: **one polygon per GTA municipality**
+where colour AND bar height both encode the per-capita crime rate.
+
+- **Pipeline** — `build_municipality_choropleth.py` → `gta_municipalities.geojson`
+  (~30 polygons). No municipality boundary file exists, so municipalities are
+  built by **dissolving the census DAs**: each DA takes the modal `municipality`
+  of the crime points it contains (nearest-assigned fill for DAs with none),
+  DAs dissolve per municipality with summed population, and total + per-bucket
+  counts/rates are computed over that shared denominator (bucket counts sum to
+  the total). Geometry is simplified (60 m) so the file is ~125 KB. Built
+  top-level (reference year 2025) and per year.
+- **Viz** — Layer 8 `municipality_crime_3d`, a 3D extruded geojson with
+  `colorField = heightField = selected_rate`. **It is the only layer visible by
+  default**, and the left layer panel is now **expanded by default** (the lite
+  profile still collapses it for the heatmap-aggregation fix).
+  `MunicipalityControl` is a **Total + multi-select Violent/Property/Nuisance/
+  Other**; per-group rates are additive over a shared population, so the selected
+  rate is just the sum of the chosen groups. The dataset is tiny, so the control
+  recomputes `selected_rate`/`selected_count` client-side and replaces the
+  dataset (re-adding the layer gives the colour scale a fresh domain). Gated to
+  the network build; the standalone build embeds the layer but shows the static
+  Total rate.
+
+Layer count: 8 → 9. Approximation note: DA→municipality assignment uses the
+crime feed's labels, so border DAs can shift slightly; a StatCan CSD boundary
+file would make it exact (follow-up).

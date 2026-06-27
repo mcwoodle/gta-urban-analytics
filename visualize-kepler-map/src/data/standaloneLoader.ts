@@ -35,7 +35,8 @@ const ENTRIES_FULL: StandaloneEntry[] = [
   { id: 'crime_points', label: 'Unified GTA Crime', format: 'csv' },
   { id: 'census_da', label: 'Census Dissemination Areas', format: 'geojson' },
   { id: 'shooting_arcs', label: 'Shooting → Centroid Arcs', format: 'csv' },
-  { id: 'coordinate_anomalies', label: 'Coordinate Anomalies (placeholder/snapped)', format: 'csv' }
+  { id: 'coordinate_anomalies', label: 'Coordinate Anomalies (placeholder/snapped)', format: 'csv' },
+  { id: 'municipalities', label: 'Crime Rate by Municipality', format: 'geojson' }
 ];
 
 const ENTRIES_LITE: StandaloneEntry[] = [

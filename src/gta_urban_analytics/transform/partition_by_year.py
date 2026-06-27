@@ -41,6 +41,7 @@ def partition_all_years(verbose: bool = True) -> None:
         _BUCKET_COUNT_COLUMNS,
         _BUCKET_RATE_COLUMNS,
     )
+    from gta_urban_analytics.transform.census.build_municipality_choropleth import build_municipality_choropleth
     from gta_urban_analytics.transform.build_standalone_compact import build_standalone_compact
     from gta_urban_analytics.transform.build_coverage_metadata import build_coverage_metadata
 
@@ -120,6 +121,16 @@ def partition_all_years(verbose: bool = True) -> None:
         )
         if verbose:
             logger.info(f"  {year}: gta_census_da.geojson (re-enriched)")
+
+        # 3b. Build this year's municipality choropleth (dissolved DAs).
+        build_municipality_choropleth(
+            crime_df=year_df,
+            census_gdf=census_gdf,
+            output_dir=year_dir,
+            verbose=False,
+        )
+        if verbose:
+            logger.info(f"  {year}: gta_municipalities.geojson")
 
         # 4. Build standalone compact variants for this year
         build_standalone_compact(source_dir=year_dir, verbose=False)

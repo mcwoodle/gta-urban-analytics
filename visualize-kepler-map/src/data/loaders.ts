@@ -30,6 +30,13 @@ export function coverageUrlForYear(year: number): string {
   return urlForYear(base, year).replace(/[^/]+$/, 'coverage.json');
 }
 
+/** Resolve a configured dataset's URL for a given year (year segment rewritten).
+ *  Returns null when the dataset isn't in the active config. */
+export function datasetUrlForYear(id: string, year: number): string | null {
+  const ds = getVizConfig().datasets.find((d) => d.id === id);
+  return ds ? urlForYear(ds.url, year) : null;
+}
+
 function parseByExtension(url: string, text: string): KeplerDataset['data'] {
   const result = /\.(geo)?json$/i.test(url)
     ? processGeojson(JSON.parse(text))
