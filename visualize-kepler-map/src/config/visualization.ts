@@ -369,7 +369,7 @@ export const VIZ_CONFIG: VisualizationConfig = {
         strokeOpacity: 0.4,
         colorRange: GLOBAL_WARMING,
         enable3d: true,
-        elevationScale: 25,
+        elevationScale: 4,
         heightRange: [0, 4000]
       },
       colorField: { name: 'selected_rate', type: 'real' },

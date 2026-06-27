@@ -30,9 +30,16 @@ const GROUPS = Object.keys(GROUP_SLUGS) as CrimeGroup[];
 type FeatureCollection = { type: string; features: any[] };
 
 /** Recompute every feature's selected_rate/selected_count for the chosen groups
- *  (empty set ⇒ the overall total). Returns a NEW FeatureCollection. */
-function withSelection(raw: FeatureCollection, groups: Set<CrimeGroup>): FeatureCollection {
+ *  (empty set ⇒ the overall total). When `exclude` is set, the counts that drop
+ *  incidents within 500 m of a known high-traffic venue (`*_excl_anomaly`) are
+ *  used. Returns a NEW FeatureCollection. */
+function withSelection(
+  raw: FeatureCollection,
+  groups: Set<CrimeGroup>,
+  exclude: boolean
+): FeatureCollection {
   const isTotal = groups.size === 0;
+  const suffix = exclude ? '_excl_anomaly' : '';
   const slugs = [...groups].map((g) => GROUP_SLUGS[g]);
 
   return {
@@ -41,8 +48,8 @@ function withSelection(raw: FeatureCollection, groups: Set<CrimeGroup>): Feature
       const p = f.properties ?? {};
       const pop = Number(p.Population) || 0;
       const count = isTotal
-        ? Number(p.crime_count) || 0
-        : slugs.reduce((sum, s) => sum + (Number(p[`crime_count_${s}`]) || 0), 0);
+        ? Number(p[`crime_count${suffix}`]) || 0
+        : slugs.reduce((sum, s) => sum + (Number(p[`crime_count_${s}${suffix}`]) || 0), 0);
       const rate = pop > 0 ? Math.round((count / pop) * 1000 * 1000) / 1000 : 0;
       return { ...f, properties: { ...p, selected_count: count, selected_rate: rate } };
     })
@@ -53,6 +60,7 @@ export function MunicipalityControl({ year }: { year: number }): JSX.Element | n
   const dispatch = useDispatch();
   const rawRef = React.useRef<FeatureCollection | null>(null);
   const [selected, setSelected] = React.useState<Set<CrimeGroup>>(new Set());
+  const [excludeAnomaly, setExcludeAnomaly] = React.useState(false);
 
   // (Re)fetch the raw GeoJSON whenever the year changes; reset to Total.
   React.useEffect(() => {
@@ -61,6 +69,7 @@ export function MunicipalityControl({ year }: { year: number }): JSX.Element | n
     const url = datasetUrlForYear(DATASET_ID, year);
     if (!url) return;
     setSelected(new Set());
+    setExcludeAnomaly(false);
     (async () => {
       try {
         const res = await fetch(url);
@@ -79,12 +88,13 @@ export function MunicipalityControl({ year }: { year: number }): JSX.Element | n
   // The standalone build can't re-fetch per-year data, so hide the control there.
   if (isStandalone()) return null;
 
-  const apply = (groups: Set<CrimeGroup>) => {
+  const apply = (groups: Set<CrimeGroup>, exclude: boolean) => {
     setSelected(groups);
+    setExcludeAnomaly(exclude);
     const raw = rawRef.current;
     if (!raw) return;
 
-    const data = processGeojson(withSelection(raw, groups));
+    const data = processGeojson(withSelection(raw, groups, exclude));
     if (!data) return;
 
     const layer = buildLayers().find((l: any) => l.id === LAYER_ID);
@@ -104,7 +114,7 @@ export function MunicipalityControl({ year }: { year: number }): JSX.Element | n
   const toggle = (g: CrimeGroup) => {
     const next = new Set(selected);
     next.has(g) ? next.delete(g) : next.add(g);
-    apply(next);
+    apply(next, excludeAnomaly);
   };
 
   const isTotal = selected.size === 0;
@@ -132,7 +142,7 @@ export function MunicipalityControl({ year }: { year: number }): JSX.Element | n
       </label>
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', maxWidth: 320 }}>
         <button
-          onClick={() => apply(new Set())}
+          onClick={() => apply(new Set(), excludeAnomaly)}
           style={{
             background: isTotal ? '#4b6479' : '#1f262e',
             color: isTotal ? '#ffffff' : '#c2ccd6',
@@ -170,10 +180,30 @@ export function MunicipalityControl({ year }: { year: number }): JSX.Element | n
           );
         })}
       </div>
+
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          marginTop: 8,
+          cursor: 'pointer'
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={excludeAnomaly}
+          onChange={() => apply(selected, !excludeAnomaly)}
+          style={{ cursor: 'pointer' }}
+        />
+        Exclude crimes near malls / high-traffic venues
+      </label>
+
       <div style={{ marginTop: 6, fontSize: 9, color: '#b8c2cc' }}>
         {isTotal
           ? 'Showing total crime rate / 1,000 residents'
           : `Showing ${[...selected].join(' + ')} rate / 1,000`}
+        {excludeAnomaly ? ' · venue-area incidents excluded' : ''}
       </div>
     </div>
   );

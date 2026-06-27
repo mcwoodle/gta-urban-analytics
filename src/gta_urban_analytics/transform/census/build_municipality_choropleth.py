@@ -33,6 +33,10 @@ import geopandas as gpd
 import pandas as pd
 
 from gta_urban_analytics.transform.crime.crime_groups import GROUP_SLUGS
+from gta_urban_analytics.transform.crime.high_traffic_locations import (
+    HIGH_TRAFFIC_LOCATIONS,
+    DEFAULT_MATCH_RADIUS_M,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +46,26 @@ _project_root = os.path.normpath(
 
 # Labels that are not real municipalities — dropped from the choropleth.
 _NON_MUNICIPALITIES = {"Outside Region", "Outside", "Cmn", ""}
+
+
+def _flag_near_anomaly(crime_points: gpd.GeoDataFrame) -> pd.Series:
+    """Boolean Series: is each crime point within 500 m of a known high-traffic
+    venue (mall/hospital/attraction/transit)? Police often snap incidents to a
+    venue centroid, so these coordinates over-count organic foot-traffic crime;
+    the viz can toggle them out of the municipality rate."""
+    venues = gpd.GeoDataFrame(
+        geometry=gpd.points_from_xy(
+            [loc.lon for loc in HIGH_TRAFFIC_LOCATIONS],
+            [loc.lat for loc in HIGH_TRAFFIC_LOCATIONS],
+        ),
+        crs="EPSG:4326",
+    ).to_crs(epsg=26917)
+    venues["geometry"] = venues.geometry.buffer(DEFAULT_MATCH_RADIUS_M)
+
+    pts = crime_points[["geometry"]].to_crs(epsg=26917)
+    hit = gpd.sjoin(pts, venues, how="left", predicate="within")
+    near_idx = hit.index[hit["index_right"].notna()].unique()
+    return crime_points.index.isin(near_idx)
 
 
 def _assign_da_municipality(
@@ -151,7 +175,13 @@ def build_municipality_choropleth(
         cdf,
         geometry=gpd.points_from_xy(cdf["lon"], cdf["lat"]),
         crs="EPSG:4326",
-    )
+    ).reset_index(drop=True)
+
+    # Flag incidents within 500 m of a known high-traffic venue (mall/hospital/…)
+    # so the viz can exclude these likely-snapped, over-counted coordinates.
+    if verbose:
+        logger.info("Flagging incidents near known high-traffic venues...")
+    crime_points["near_anomaly"] = _flag_near_anomaly(crime_points)
 
     # --- 1+2. Assign every DA a municipality ---
     if verbose:
@@ -174,30 +204,35 @@ def build_municipality_choropleth(
 
     # --- 4. Count crime points toward the municipality of the DA they fell in ---
     joined = gpd.sjoin(
-        crime_points[["crime_group", "geometry"]],
+        crime_points[["crime_group", "near_anomaly", "geometry"]],
         das[["municipality", "geometry"]],
         how="inner",
         predicate="within",
     )
-    total_counts = joined.groupby("municipality").size().rename("crime_count")
-    out = polygons.merge(total_counts, on="municipality", how="left")
-    out["crime_count"] = out["crime_count"].fillna(0).astype(int)
-
+    out = polygons.copy()
     pop = out["Population"].replace(0, pd.NA)
-    out["crime_rate_per_1k"] = (out["crime_count"] / pop * 1000).astype(float)
 
-    for group, slug in GROUP_SLUGS.items():
-        c = (
-            joined[joined["crime_group"] == group]
-            .groupby("municipality")
-            .size()
-            .rename(f"crime_count_{slug}")
-        )
-        out = out.merge(c, on="municipality", how="left")
-        out[f"crime_count_{slug}"] = out[f"crime_count_{slug}"].fillna(0).astype(int)
-        out[f"crime_rate_{slug}_per_1k"] = (
-            out[f"crime_count_{slug}"] / pop * 1000
-        ).astype(float)
+    def _counts(points: gpd.GeoDataFrame, suffix: str) -> None:
+        """Write crime_count{suffix} + per-bucket counts/rates from `points`."""
+        total = points.groupby("municipality").size().rename(f"crime_count{suffix}")
+        merged = out.merge(total, on="municipality", how="left")
+        out[f"crime_count{suffix}"] = merged[f"crime_count{suffix}"].fillna(0).astype(int).values
+        out[f"crime_rate{suffix}_per_1k"] = (out[f"crime_count{suffix}"] / pop * 1000).astype(float)
+        for group, slug in GROUP_SLUGS.items():
+            c = (
+                points[points["crime_group"] == group]
+                .groupby("municipality").size().rename(f"crime_count_{slug}{suffix}")
+            )
+            m = out.merge(c, on="municipality", how="left")
+            out[f"crime_count_{slug}{suffix}"] = m[f"crime_count_{slug}{suffix}"].fillna(0).astype(int).values
+            out[f"crime_rate_{slug}{suffix}_per_1k"] = (
+                out[f"crime_count_{slug}{suffix}"] / pop * 1000
+            ).astype(float)
+
+    # Full counts (all incidents) and anomaly-excluded counts (drop incidents
+    # within 500 m of a high-traffic venue). The viz toggles between them.
+    _counts(joined, "")
+    _counts(joined[~joined["near_anomaly"]], "_excl_anomaly")
 
     # selected_* drive the (initially Total) choropleth; the viz recomputes them.
     out["selected_count"] = out["crime_count"]

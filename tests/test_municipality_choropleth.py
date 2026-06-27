@@ -93,6 +93,34 @@ def test_drops_non_municipality_labels(tmp_path):
     assert "Outside Region" not in set(out["municipality"])
 
 
+def test_excludes_near_anomaly_crimes(tmp_path):
+    # Two incidents on top of the CF Toronto Eaton Centre (a known venue), one
+    # away from any venue — all inside DA "1" (geometry covers Toronto-ish here).
+    eaton = Polygon([(-79.40, 43.64), (-79.36, 43.64), (-79.36, 43.67), (-79.40, 43.67)])
+    census = gpd.GeoDataFrame(
+        {"DAUID": ["1"], "Population": [1000]}, geometry=[eaton], crs="EPSG:4326"
+    )
+    crime = pd.DataFrame(
+        {
+            "lat": [43.6544, 43.6544, 43.655],
+            "lon": [-79.3807, -79.3807, -79.37],  # first two = Eaton Centre
+            "municipality": ["Toronto", "Toronto", "Toronto"],
+            "crime_group": ["Property", "Property", "Violent"],
+        }
+    )
+    out = build_municipality_choropleth(
+        crime_df=crime, census_gdf=census, output_dir=str(tmp_path), verbose=False
+    )
+    row = out.iloc[0]
+    assert int(row["crime_count"]) == 3
+    # The two venue-snapped incidents are excluded; one remains.
+    assert int(row["crime_count_excl_anomaly"]) == 1
+    # Excluded count never exceeds the full count.
+    assert int(row["crime_count_excl_anomaly"]) <= int(row["crime_count"])
+    assert int(row["crime_count_property_excl_anomaly"]) == 0
+    assert int(row["crime_count_violent_excl_anomaly"]) == 1
+
+
 def test_writes_geojson(tmp_path):
     build_municipality_choropleth(
         crime_df=_crime(), census_gdf=_census(), output_dir=str(tmp_path), verbose=False

@@ -18,10 +18,14 @@ paint: one polygon per GTA municipality (Toronto, Newmarket, Aurora, Vaughan, �
 where **both colour and bar height encode the per-capita crime rate**. A
 `MunicipalityControl` (top-left) is a **Total + Violent/Property/Nuisance/Other**
 multi-select — picking a subset shows the summed per-capita rate of those groups
-(rates are additive over a shared population). The municipality dataset is tiny
-(~30 polygons, dissolved from the census DAs in the pipeline), so the control
-recomputes the rate client-side and replaces the dataset instantly. The left
-layer panel is **expanded by default** so every layer is one toggle away.
+(rates are additive over a shared population). A checkbox **excludes incidents
+within 500 m of a known high-traffic venue** (malls, hospitals, attractions,
+transit hubs — police often snap incidents to a venue centroid, inflating the
+rate); the pipeline precomputes both the full and `_excl_anomaly` counts per
+municipality. The municipality dataset is tiny (~30 polygons, dissolved from the
+census DAs in the pipeline), so the control recomputes the rate client-side and
+replaces the dataset instantly. The left layer panel is **expanded by default**
+so every layer is one toggle away.
 
 **Crime-type buckets.** The pipeline collapses the 15 canonical categories into
 4 buckets — Violent / Property / Nuisance / Other (`crime_group`) — and computes
