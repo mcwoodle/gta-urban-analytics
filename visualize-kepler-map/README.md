@@ -121,6 +121,29 @@ The standalone build uses a Carto dark-matter basemap so it does not depend
 on Mapbox tile servers (which can reject requests from `null`-origin
 `file://` pages). Mapbox token is not required for this variant.
 
+### Standalone monthly map (single-month + year-over-year)
+
+```bash
+yarn build:standalone:monthly   # → dist/standalone-monthly.html
+```
+
+A **separate** single-file map focused on months, with its own entry
+(`src/app-monthly.tsx`), bundle (`bundle-monthly.js`), and one embedded dataset
+— the per-month municipality GeoJSON (`gta_municipalities_monthly.geojson`,
+built by `transform/census/build_municipality_monthly.py`, covering 2025 + 2026).
+A `MonthlyControl` (top-left) offers:
+
+- **Single month** — colour + 3D height = that month's crime, either **absolute**
+  totals or **per 1,000 residents**.
+- **Year-over-year** — pick a 2026 month; bars show the change vs the same 2025
+  month. **Height encodes the change**: the municipality with the largest decrease
+  is flat (height 0) and the largest increase is tallest (Kepler's linear height
+  scale maps the Δ domain onto `[0, H]`); a diverging blue→red ramp marks the sign.
+
+All month/mode/metric switching is recomputed **client-side** from the one
+embedded GeoJSON (no fetch), so the file works fully offline via `file://`.
+In dev (`yarn start`) the monthly map is served at `dist/index-monthly.html`.
+
 **Browser support** for standalone HTML: Chrome 80+, Firefox 113+, Safari
 16.4+, Edge 80+ (requires the native `DecompressionStream` API).
 
@@ -129,6 +152,7 @@ on Mapbox tile servers (which can reject requests from `null`-origin
 ```
 src/
 ├── config/visualization.ts   # ★ SINGLE source of truth for datasets/layers
+├── config/monthlyVisualization.ts # monthly map: dataset/layer/ramps (single + YoY)
 ├── data/
 │   ├── types.ts              # discriminated union of layer specs
 │   ├── loaders.ts            # fetch-based loader; forks to standalone
@@ -147,12 +171,15 @@ src/
 │   ├── BivariateLegend.tsx   # 3×3 income × crime-rate key (Layer 6)
 │   ├── CrimeGroupControl.tsx # Total/Violent/Property/Nuisance/Other selector
 │   ├── CrimeGroupLegend.tsx  # active rate ramp + coverage caveat
-│   └── MunicipalityControl.tsx # Total + multi-select buckets (Layer 8)
+│   ├── MunicipalityControl.tsx # Total + multi-select buckets (Layer 8)
+│   ├── MonthlyMapShell.tsx     # standalone-monthly shell (loads 1 dataset)
+│   └── MonthlyControl.tsx      # single-month / YoY · absolute / per-1k · month picker
 ├── hooks/
 │   ├── useHexbinLayer.ts     # layer/dataset/filter selectors
 │   └── useCoverage.ts        # fetches per-year coverage.json
 ├── store.ts                  # Redux + taskMiddleware
-└── app.tsx                   # ReactDOM mount
+├── app.tsx                   # ReactDOM mount (main map)
+└── app-monthly.tsx           # ReactDOM mount (standalone-monthly map)
 ```
 
 ## Editing layers

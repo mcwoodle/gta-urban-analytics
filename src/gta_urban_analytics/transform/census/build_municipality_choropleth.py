@@ -111,6 +111,27 @@ def _assign_da_municipality(
     return muni
 
 
+def _dissolve_to_municipalities(das: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Dissolve municipality-tagged DAs into one polygon per municipality.
+
+    Sums DA population, simplifies geometry in a metric CRS (60 m — invisible at
+    the city-wide zoom these layers render at), and attaches a UTM-accurate
+    centroid (``centroid_lat`` / ``centroid_lon``) as a label anchor. Shared by
+    the yearly choropleth and the monthly builder so both produce identical
+    municipality polygons.
+    """
+    polygons = das.dissolve(by="municipality", aggfunc={"Population": "sum"}).reset_index()
+    # Dissolving keeps every DA vertex (~7 MB for 27 polygons). Simplify in a
+    # metric CRS — 60 m is invisible at the city-wide zoom this layer renders at.
+    utm = polygons.to_crs(epsg=26917)
+    utm["geometry"] = utm.geometry.simplify(tolerance=60, preserve_topology=True)
+    polygons = utm.to_crs(epsg=4326)
+    cents = polygons.geometry.to_crs(epsg=26917).centroid.to_crs(epsg=4326)
+    polygons["centroid_lat"] = cents.y
+    polygons["centroid_lon"] = cents.x
+    return polygons
+
+
 def build_municipality_choropleth(
     crime_df: pd.DataFrame | None = None,
     census_gdf: gpd.GeoDataFrame | None = None,
@@ -193,14 +214,7 @@ def build_municipality_choropleth(
     # --- 3. Dissolve DA geometry by municipality + sum population ---
     if verbose:
         logger.info("Dissolving DAs into municipality polygons...")
-    polygons = das.dissolve(by="municipality", aggfunc={"Population": "sum"})
-    polygons = polygons.reset_index()
-
-    # Dissolving keeps every DA vertex (~7 MB for 27 polygons). Simplify in a
-    # metric CRS — 60 m is invisible at the city-wide zoom this layer renders at.
-    utm = polygons.to_crs(epsg=26917)
-    utm["geometry"] = utm.geometry.simplify(tolerance=60, preserve_topology=True)
-    polygons = utm.to_crs(epsg=4326)
+    polygons = _dissolve_to_municipalities(das)
 
     # --- 4. Count crime points toward the municipality of the DA they fell in ---
     joined = gpd.sjoin(
@@ -243,11 +257,7 @@ def build_municipality_choropleth(
     for c in rate_cols:
         out[c] = out[c].round(3)
 
-    # Label anchor (UTM-accurate centroid → lat/lon).
-    cents = out.geometry.to_crs(epsg=26917).centroid.to_crs(epsg=4326)
-    out["centroid_lat"] = cents.y
-    out["centroid_lon"] = cents.x
-
+    # centroid_lat/centroid_lon already attached by _dissolve_to_municipalities.
     out = out.set_geometry("geometry")
     if out.crs is None:
         out = out.set_crs(epsg=4326)

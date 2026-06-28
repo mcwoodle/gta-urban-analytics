@@ -45,6 +45,7 @@ from gta_urban_analytics.transform.crime.build_coordinate_anomalies import build
 from gta_urban_analytics.transform.census.build_gta_census import build_gta_census_geojson
 from gta_urban_analytics.transform.census.enrich_with_crime_rate import enrich_census_with_crime_rate, REFERENCE_YEAR
 from gta_urban_analytics.transform.census.build_municipality_choropleth import build_municipality_choropleth
+from gta_urban_analytics.transform.census.build_municipality_monthly import build_municipality_monthly
 from gta_urban_analytics.transform.build_standalone_compact import build_standalone_compact
 from gta_urban_analytics.transform.build_coverage_metadata import build_coverage_metadata
 from gta_urban_analytics.transform.partition_by_year import partition_all_years
@@ -84,6 +85,7 @@ DERIVED_STEPS = [
     ("Building GTA census GeoJSON",                 lambda: build_gta_census_geojson(verbose=VERBOSE)),
     ("Enriching census DAs with crime rate",        lambda: enrich_census_with_crime_rate(reference_year=REFERENCE_YEAR, verbose=VERBOSE)),
     ("Building municipality choropleth",            lambda: build_municipality_choropleth(reference_year=REFERENCE_YEAR, verbose=VERBOSE)),
+    ("Building monthly municipality choropleth",    lambda: build_municipality_monthly(verbose=VERBOSE)),
     ("Building coverage metadata",                  lambda: build_coverage_metadata(verbose=VERBOSE)),
     ("Building shooting arcs",                      lambda: build_shooting_arcs(verbose=VERBOSE)),
     ("Flagging coordinate anomalies",               lambda: build_coordinate_anomalies(verbose=VERBOSE)),

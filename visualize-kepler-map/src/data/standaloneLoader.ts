@@ -87,6 +87,16 @@ async function gunzipToText(bytes: Uint8Array): Promise<string> {
   return await new Response(stream).text();
 }
 
+/** Decode a single embedded payload (gzip+base64) to text, or null when the key
+ *  is absent. Used by the monthly map, which needs the raw GeoJSON FeatureCollection
+ *  (not a processed Kepler dataset) so it can recompute display fields client-side. */
+export async function decodeEmbeddedText(key: string): Promise<string | null> {
+  const data = (window as any).__STANDALONE_DATA__;
+  const b64 = data?.[key];
+  if (!b64) return null;
+  return gunzipToText(base64ToBytes(b64));
+}
+
 export async function loadStandaloneDatasets(): Promise<KeplerDataset[]> {
   const data = embeddedData();
   const datasets: KeplerDataset[] = [];
