@@ -44,10 +44,8 @@ const sharedConfig = {
     '.woff': 'file',
     '.woff2': 'file'
   },
-  entryPoints: [path.join(__dirname, 'src/app.tsx')],
-  outfile: path.join(__dirname, 'dist/bundle.js'),
   bundle: true,
-  splitting: false, // CRITICAL: scripts/build-standalone.mjs expects one bundle.
+  splitting: false, // CRITICAL: scripts/build-standalone*.mjs expect one bundle each.
   target: 'es2020',
   define: {
     NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'production'),
@@ -68,13 +66,29 @@ const sharedConfig = {
       resolveFrom: 'cwd',
       assets: [
         {
-          from: [path.join(__dirname, 'public/index.html')],
+          from: [path.join(__dirname, 'public/*.html')],
           to: [path.join(__dirname, 'dist')]
         }
       ]
     })
   ]
 };
+
+// The two app entries → their single IIFE bundles. The main map and the
+// standalone-monthly map are separate single-file builds, so each gets its own
+// bundle (splitting:false) for the matching build-standalone*.mjs to inline.
+const ENTRIES = [
+  { entry: 'src/app.tsx', outfile: 'dist/bundle.js' },
+  { entry: 'src/app-monthly.tsx', outfile: 'dist/bundle-monthly.js' }
+];
+
+function configFor({ entry, outfile }) {
+  return {
+    ...sharedConfig,
+    entryPoints: [path.join(__dirname, entry)],
+    outfile: path.join(__dirname, outfile)
+  };
+}
 
 // ------------------------------------------------------------------------
 // Helpers
@@ -132,18 +146,20 @@ function openURL(url) {
 (async () => {
   if (args.includes('--build')) {
     try {
-      const result = await esbuild.build({
-        ...sharedConfig,
-        minify: true,
-        sourcemap: false,
-        metafile: true
-      });
-      fs.writeFileSync(
-        path.join(__dirname, 'dist/esbuild-metadata.json'),
-        JSON.stringify(result.metafile)
-      );
-      const size = (fs.statSync(path.join(__dirname, 'dist/bundle.js')).size / (1024 * 1024)).toFixed(1);
-      console.info(`[esbuild] production build complete — bundle.js ${size} MB`);
+      for (const target of ENTRIES) {
+        const result = await esbuild.build({
+          ...configFor(target),
+          minify: true,
+          sourcemap: false,
+          metafile: true
+        });
+        fs.writeFileSync(
+          path.join(__dirname, `dist/esbuild-metadata-${path.basename(target.outfile)}.json`),
+          JSON.stringify(result.metafile)
+        );
+        const size = (fs.statSync(path.join(__dirname, target.outfile)).size / (1024 * 1024)).toFixed(1);
+        console.info(`[esbuild] production build complete — ${path.basename(target.outfile)} ${size} MB`);
+      }
       process.exit(0);
     } catch (e) {
       console.error(e);
@@ -153,15 +169,22 @@ function openURL(url) {
 
   if (args.includes('--start')) {
     try {
-      const ctx = await esbuild.context({
-        ...sharedConfig,
-        minify: false,
-        sourcemap: true,
-        banner: {
-          js: "new EventSource('/esbuild').addEventListener('change', () => location.reload());"
-        }
-      });
-      await ctx.watch();
+      // Watch every entry so both the main map and the monthly map are
+      // available in dev; serve from a single context.
+      const contexts = [];
+      for (const target of ENTRIES) {
+        const c = await esbuild.context({
+          ...configFor(target),
+          minify: false,
+          sourcemap: true,
+          banner: {
+            js: "new EventSource('/esbuild').addEventListener('change', () => location.reload());"
+          }
+        });
+        await c.watch();
+        contexts.push(c);
+      }
+      const ctx = contexts[0];
       await ctx.serve({
         servedir: path.join(__dirname, '..'),
         port,

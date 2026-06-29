@@ -39,6 +39,20 @@ This will populate `data/01_raw/` with downloaded CSVs and `data/02_transformed/
 
 To visualize the transformed data, load `data/02_transformed/unified_data.csv` into [Kepler.gl Demo](https://kepler.gl/demo).
 
+A bundled Kepler.gl app lives in `visualize-kepler-map/` (see its README). Besides
+the main multi-layer map it builds two extra single-file maps:
+
+```bash
+cd visualize-kepler-map
+yarn build:standalone           # dist/standalone.html — main map, fully offline
+yarn build:standalone:monthly   # dist/standalone-monthly.html — monthly map
+yarn build:all                  # all of the above + the lite variant
+```
+
+The **monthly** map shows crime per municipality by month, switching client-side
+between single-month (absolute or per-1,000 residents) and year-over-year views
+(each 2026 month vs its 2025 twin, with bar height encoding the change).
+
 ## 4. Individual Pipeline Stages
 
 You can also run each stage separately:
