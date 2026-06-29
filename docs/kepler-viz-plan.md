@@ -553,3 +553,28 @@ The build pipeline is green end-to-end, but no browser has actually opened any o
 3. Open `dist/standalone.html` directly via `file://` — confirm `DecompressionStream` decodes embedded data, Carto basemap loads, and all four layers render without a Mapbox token.
 4. Exercise the radius slider and confirm the `worldUnitSize` debounce behaves.
 5. Run verification steps 1–16 from the plan above.
+
+## Addendum (2026-06-26) — Income/census relationship layers
+
+The four flat/extruded layers above show income and crime rate as **separate**
+choropleths (Layers 2 and 3), so seeing how the two co-vary meant toggling
+between them and overlaying them mentally. Two layers were added to show the
+relationship directly:
+
+- **Layer 6 — Income × Crime-Rate bivariate choropleth** (`income_crime_bivariate`,
+  visible by default). Each DA is pre-binned in the pipeline into one of nine
+  classes (`bivariate_class` A–I = income tercile × crime-rate tercile) and
+  coloured from a 3×3 bivariate palette. A `BivariateLegend.tsx` overlay renders
+  the 2D key. This is the textbook way to read two variables off one map; the
+  GTA data shows a real (if modest) signal — Spearman ρ ≈ −0.17, with low-income
+  DAs high-crime ~39 % of the time vs ~25 % for high-income DAs.
+- **Layer 7 — Crime Rate × Population 3D** (`crime_rate_by_population_3d`, hidden
+  by default). Colours each DA by `crime_rate_per_1k` and extrudes it by
+  `Population`, so crime rate is read *with respect to population* in one view.
+
+Pipeline: `enrich_with_crime_rate.py` now also writes `bivariate_class` and
+`bivariate_label` (idempotent; recomputed per-year by the partitioner and kept by
+`build_standalone_compact.py`). Viz: `GeoJsonLayerSpec` gained optional 3D height
+knobs (`enable3d`/`elevationScale`/`heightRange`/`heightField`); the 3D density
+hexbin (Layer 1) now starts hidden so first paint leads with the bivariate map.
+All binning stays in the pipeline — the viz only renders the precomputed class.

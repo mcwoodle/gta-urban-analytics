@@ -45,13 +45,16 @@ _COMPACT_CRIME_COLUMNS = [
     "region",
 ]
 
-# Properties Layers 2 and 3 use.
+# Properties the census-backed choropleth layers use (income, crime-rate, and
+# the bivariate income × crime-rate classification).
 _COMPACT_CENSUS_PROPERTIES = [
     "DAUID",
     "Population",
     "Median_Income",
     "crime_count",
     "crime_rate_per_1k",
+    "bivariate_class",
+    "bivariate_label",
 ]
 
 

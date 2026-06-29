@@ -30,6 +30,7 @@ import { loadAllDatasets, validateColorFields } from '../data/loaders';
 import { buildLayers } from '../layers';
 import { RadiusControl } from './RadiusControl';
 import { YearControl } from './YearControl';
+import { BivariateLegend } from './BivariateLegend';
 
 // react-virtualized ships its own (pre-18) React types, so its AutoSizer class
 // fails @types/react@18's `ElementClass` check when used as JSX. Re-type it as
@@ -187,6 +188,7 @@ export function MapShell(): JSX.Element {
       {loaded ? (
         <>
           {getProfile() !== 'lite' && <RadiusControl />}
+          {getProfile() !== 'lite' && <BivariateLegend />}
           <YearControl year={year} setYear={setYear} />
         </>
       ) : null}

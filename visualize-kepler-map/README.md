@@ -1,17 +1,32 @@
 # GTA Urban Analytics — Kepler.gl Visualization
 
-A five-layer Kepler.gl map of GTA crime + census data, driven from a single
+A seven-layer Kepler.gl map of GTA crime + census data, driven from a single
 typed config file (`src/config/visualization.ts`) so layer choice and styling
 can be tweaked without touching React code.
 
-The five layers: (1) crime hexbin, (2) median-income choropleth, (3) crime-rate
-choropleth, (4) shooting → centroid arcs, and (5) a coordinate-anomaly overlay
-that marks placeholder/snapped points (> 500 incidents at one exact lat/lon) —
+The seven layers: (1) crime hexbin, (2) median-income choropleth, (3) crime-rate
+choropleth, (4) shooting → centroid arcs, (5) a coordinate-anomaly overlay that
+marks placeholder/snapped points (> 500 incidents at one exact lat/lon) —
 coloured by class so anomalies near a known high-traffic venue (mall/hospital)
-read apart from unexplained ones (audit F-19). Hovering an anomaly dot shows a
-plain-English `description` of its classification (plus `anomaly_type`,
-`nearest_location`, and `incident_count`), configured via `tooltips` in
-`src/config/visualization.ts`.
+read apart from unexplained ones (audit F-19), **(6) an income × crime-rate
+bivariate choropleth**, and **(7) a 3D crime-rate-by-population extrusion**.
+
+**Layers 6 and 7 show how crime rate relates to census data.** Layer 6 is the
+default view: each Dissemination Area is coloured from a 3×3 bivariate palette
+(income tercile × crime-rate tercile), so the relationship between income and
+crime reads directly off the map — strong red marks lower-income/higher-crime
+areas, blue marks affluent/safer ones. A 3×3 key (`BivariateLegend.tsx`) appears
+bottom-right while the layer is on. Layer 7 (toggle on) colours each DA by
+per-capita crime rate and extrudes it in 3D by population, so a tall warm bar =
+many residents *and* high per-capita crime. Both read from the pipeline-computed
+`bivariate_class` / `bivariate_label` and `crime_rate_per_1k` / `Population`
+properties — the viz does no binning of its own. Hovering any DA shows its
+`bivariate_label` plus the underlying income, rate, count, and population.
+
+The 3D density hexbin (Layer 1) starts hidden so first paint leads with the
+bivariate relationship; one toggle in Kepler's panel brings it back. Hovering an
+anomaly dot shows a plain-English `description` of its classification; all hover
+fields are configured via `tooltips` in `src/config/visualization.ts`.
 
 ## Data prerequisite
 
@@ -25,9 +40,10 @@ uv run full-pipeline    # or: uv run transform
 ```
 
 After this completes, `data/02_transformed/` contains every file the viz
-needs, including the enriched census GeoJSON (with `crime_count` and
-`crime_rate_per_1k`), `shooting_arcs.csv`, and the compact variants under
-`standalone/` that the single-file HTML build embeds.
+needs, including the enriched census GeoJSON (with `crime_count`,
+`crime_rate_per_1k`, and the bivariate `bivariate_class` / `bivariate_label`),
+`shooting_arcs.csv`, and the compact variants under `standalone/` that the
+single-file HTML build embeds.
 
 ## Setup
 
@@ -90,12 +106,14 @@ src/
 ├── layers/
 │   ├── index.ts              # buildLayers() dispatcher
 │   ├── hexbinLayer.ts        # Layer 1
-│   ├── geojsonLayer.ts       # Layers 2 + 3
+│   ├── geojsonLayer.ts       # Layers 2, 3, 6 (flat) + 7 (3D extrusion)
 │   ├── arcLayer.ts           # Layer 4
 │   └── pointLayer.ts         # Layer 5 (coordinate anomalies)
 ├── components/
 │   ├── MapShell.tsx          # load + dispatch wiring
-│   └── RadiusControl.tsx     # custom debounced slider
+│   ├── RadiusControl.tsx     # custom debounced slider
+│   ├── YearControl.tsx       # data-year selector
+│   └── BivariateLegend.tsx   # 3×3 income × crime-rate key (Layer 6)
 ├── hooks/useHexbinLayer.ts
 ├── store.ts                  # Redux + taskMiddleware
 └── app.tsx                   # ReactDOM mount
