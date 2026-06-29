@@ -53,14 +53,78 @@ Toronto Fire | Fire Station / Facility Locations (85 stations) | https://open.to
 
 ### Future expansion (sources identified, not yet integrated)
 
-Per the project sourcing brief. All are **station-location only** (points +
-address/ward/station number); none carry "fires handled" volumes — so when
-integrated they extend the `fire_stations` layer's coverage but the per-station
-volume metric remains Toronto-only unless an incident feed surfaces.
+Per the project sourcing brief. Each source below was pulled and inspected
+(ArcGIS REST `?f=json` field list + a sample row, June 2026); field names, record
+counts, geometry/CRS, and access notes are recorded so integration can map them
+to `fire_unified_schema` / the `fire_stations` layer without re-discovery. All
+are **station-location only** unless flagged as an **incident** feed.
 
-Region | Source | Dataset | Web Link / Portal | Notes
--------|--------|---------|-------------------|------
-Peel | Mississauga Fire & Emergency Services | City Fire Stations (22 stations, incl. ward + station id) | https://data.mississauga.ca/datasets/city-fire-stations | ArcGIS Hub; CSV/GeoJSON export available
-Peel | Brampton Fire & Emergency Services | Fire Station locations | Brampton GeoHub — https://geohub.brampton.ca/ | Search "fire station"; ArcGIS Hub export
-York | York Region | Fire Stations (emergency infrastructure coords) | https://insights-york.opendata.arcgis.com/datasets/02532059bb684e40baa15313b8ab3bb3 | ArcGIS Hub item `02532059bb684e40baa15313b8ab3bb3`
-York | Central York Fire Services (Newmarket & Aurora) | Community Risk Public Portal (top-3 fire causes per ward; launched Apr 2026) | https://www.centralyorkfire.ca/ | Interactive portal; **no confirmed open API/bulk export** — needs investigation before integration
+All ArcGIS items are reachable two ways: the item metadata at
+`https://www.arcgis.com/sharing/rest/content/items/<itemid>?f=json` (yields the
+service `url`), then `<service>/<layerId>/query?where=1=1&outFields=*&f=json` for
+records. Hub CSV/GeoJSON export also works for most. Coordinates are noted per
+source — most are **Web Mercator (EPSG:3857)** and will need the same reprojection
+to WGS84 that York crime data gets.
+
+#### Peel — Mississauga, "City Fire Stations" *(station locations)*
+- **Item** `e84a2af2c2c6489cbd42086769df9b5e` · service
+  `services6.arcgis.com/hM5ymMLbxIyWTjn2/arcgis/rest/services/City_Fire_Stations/FeatureServer`,
+  **layer id 5** (not 0). Web link: https://data.mississauga.ca/datasets/city-fire-stations
+- **22 points**, `esriGeometryPoint`, Web Mercator (EPSG:3857). It is a filtered
+  slice of Mississauga's "City Landmarks" service, so the schema is wide (37 fields).
+- **Useful fields:** `LANDMARKNAME` (e.g. `"Airport Fire Station #119"`),
+  `UNITID` (e.g. `"FS19"`), address parts `STNO`/`STNAME`/`SUFFIX`, `CITY`,
+  `WARD` (e.g. `"W5"`), `OWNERSHIP`, `SERVSTAT` (service status, e.g. `"OCC"`),
+  `LANDMARKWEBSITE`, `LANDMARKPHONE`, `CENT_X`/`CENT_Y` (UTM 17N) and
+  `CENT_X_3857`/`CENT_Y_3857`. No call/fire volumes.
+
+#### Peel — Brampton, "Fire Stations" (BFES) *(station locations)*
+- **Item** `903786a0b2a24e52b146856864d029ad` · service
+  `services3.arcgis.com/rl7ACuZkiFsmDA2g/arcgis/rest/services/BFES_Fire_Stations/FeatureServer/0`.
+  Portal: https://geohub.brampton.ca/
+- **14 points**, `esriGeometryPoint`, Web Mercator (EPSG:3857).
+- **Fields (all of them):** `FIRE_STATION_NUMBER` (e.g. `"203"`),
+  `FIRE_STN_ADDRESS`, `ACCESS_FROM`. Minimal; station-location only.
+
+#### Peel — Brampton, "BFES Residential Fire Incidents 2012 to 2016" *(INCIDENT feed)*
+- **Item** `c0becda03ea944cca84bcff7d42f61b2` · service
+  `services3.arcgis.com/rl7ACuZkiFsmDA2g/arcgis/rest/services/BFES Residential Fire Incidents 2012 to 2016/FeatureServer/0`
+  (note spaces in path — URL-encode as `%20`).
+- **758 points**, `esriGeometryPoint`. Coordinates are **WGS84 lat/lon in the
+  attributes** (`XCOORD` ≈ −79.75 lon, `YCOORD` ≈ 43.74 lat); the geometry itself
+  is projected.
+- **Fields:** `FIRE` (incident id, e.g. `"1200362-00"`), `DATE_` (`MM/DD/YY`),
+  `ALARM` (time of day), `XCOORD`/`YCOORD`, `PROPERTY_CLASS_DESC`,
+  `AREA_OF_ORIGIN_DESC`, `CAUSE_DESC`, `IGNITION_SOURCE_DESC`,
+  `LEVEL_OF_ORIGIN_DESC`, `OBJECT_IGNITED_DESC`.
+- **This is per-incident point data** — the first non-Toronto source that could
+  feed a "fires handled" volume metric. Caveats: **residential fires only**, a
+  closed **2012–2016** historical window, **no dollar loss** and **no responding
+  station**, so it is not directly comparable to Toronto's `Estimated_Dollar_Loss`
+  / `Incident_Station_Area` feed.
+
+#### York — Markham, "Fire Stations" *(station locations; listed as "York Region" — incorrect)*
+- **Item** `02532059bb684e40baa15313b8ab3bb3`. **Correction:** this item is owned
+  by **City of Markham** (`maps.markham.ca`, service `OpenData/OD_FIRE_STN`), not
+  York Region as a whole — it is **Markham only (9 stations)**, not region-wide.
+- The direct `maps.markham.ca` service requires a token (`error 499`); use the
+  **public proxy** instead:
+  `https://utility.arcgis.com/usrsvcs/servers/02532059bb684e40baa15313b8ab3bb3/rest/services/OpenData/OD_FIRE_STN/FeatureServer/0`.
+- **9 points**, `esriGeometryPoint`; `X_COORD`/`Y_COORD` are **UTM 17N
+  (EPSG:26917)**.
+- **Fields:** `NAME` (e.g. `"Fire Station 93"`), `NAME_CAP`, `ADDRESS`,
+  `X_COORD`, `Y_COORD`, `TYPE` (`"Fire Station"`), `LABEL` (e.g. `"93"`),
+  `GLOBALID`. Station-location only.
+- **No single York-Region-wide fire-station open dataset surfaced** — coverage is
+  per-municipality (Markham here; Vaughan/Richmond Hill etc. would each need their
+  own source). Full York coverage means stitching several municipal feeds.
+
+#### York — Central York Fire Services (Newmarket & Aurora) *(still no usable open data)*
+- Community Risk Public Portal (top-3 fire causes per ward; launched Apr 2026):
+  https://www.centralyorkfire.ca/ — interactive only, **no confirmed open
+  API/bulk export**.
+- The `AuroraData` org publishes a "Fire Stations" item
+  (`ad1e9aeeb26649158f018a3056115dce`) but it is an **ArcGIS sample/placeholder
+  dataset of Illinois fire departments** (rows show `CITY` = Elburn, `STATE` =
+  `"IL"`), **not** Aurora, Ontario — do not use it. Central York remains
+  unintegratable from open data for now.
