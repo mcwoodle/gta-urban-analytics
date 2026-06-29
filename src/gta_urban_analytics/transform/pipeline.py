@@ -21,6 +21,9 @@ row), not individual offences — so e.g. ``crime_rate_per_1k`` is incidents per
 Outputs:
   - data/02_transformed/unified_data.csv
   - data/02_transformed/gta_census_da.geojson   (enriched with crime_count + crime_rate_per_1k)
+  - data/02_transformed/fire_incidents.csv       (unified Toronto fire incidents)
+  - data/02_transformed/fire_stations.geojson    (per-station fires_handled)
+  - data/02_transformed/fire_da.geojson          (per-DA fire_rate_per_1k)
   - data/02_transformed/shooting_arcs.csv
   - data/02_transformed/coordinate_anomalies.csv
   - data/02_transformed/standalone/unified_data_compact.csv
@@ -43,6 +46,9 @@ from gta_urban_analytics.transform.crime.build_shooting_arcs import build_shooti
 from gta_urban_analytics.transform.crime.build_coordinate_anomalies import build_coordinate_anomalies
 from gta_urban_analytics.transform.census.build_gta_census import build_gta_census_geojson
 from gta_urban_analytics.transform.census.enrich_with_crime_rate import enrich_census_with_crime_rate, REFERENCE_YEAR
+from gta_urban_analytics.transform.fire.unify_fire import unify_fire
+from gta_urban_analytics.transform.fire.build_fire_stations import build_fire_stations
+from gta_urban_analytics.transform.fire.build_fire_choropleth import build_fire_choropleth
 from gta_urban_analytics.transform.build_standalone_compact import build_standalone_compact
 from gta_urban_analytics.transform.partition_by_year import partition_all_years
 
@@ -76,6 +82,9 @@ TRANSFORM_STEPS = [
 DERIVED_STEPS = [
     ("Building GTA census GeoJSON",                 lambda: build_gta_census_geojson(verbose=VERBOSE)),
     ("Enriching census DAs with crime rate",        lambda: enrich_census_with_crime_rate(reference_year=REFERENCE_YEAR, verbose=VERBOSE)),
+    ("Unifying fire incidents",                     lambda: unify_fire(verbose=VERBOSE)),
+    ("Building fire station volume",                lambda: build_fire_stations(verbose=VERBOSE)),
+    ("Building fire-rate choropleth",              lambda: build_fire_choropleth(verbose=VERBOSE)),
     ("Building shooting arcs",                      lambda: build_shooting_arcs(verbose=VERBOSE)),
     ("Flagging coordinate anomalies",               lambda: build_coordinate_anomalies(verbose=VERBOSE)),
     ("Building standalone compact variants",        lambda: build_standalone_compact(verbose=VERBOSE)),

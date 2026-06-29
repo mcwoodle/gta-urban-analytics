@@ -35,6 +35,10 @@ uv run full-pipeline
 
 This will populate `data/01_raw/` with downloaded CSVs and `data/02_transformed/` with unified crime data and census GeoJSON.
 
+### Fire service data
+
+The pipeline also pulls **Toronto Fire Services** data (City of Toronto Open Data): fire incidents and station locations. From these it builds `fire_incidents.csv`, `fire_stations.geojson` (each station's **"fires handled"** — incidents grouped by responding station — plus total dollar loss), and `fire_da.geojson` (per-capita fire rate by census Dissemination Area). These surface as three toggleable fire layers in the Kepler map. Fire is municipal (not regional), so only Toronto publishes rich point-level data today; the `extract/fire/` + `transform/fire/` packages are structured to add more municipalities later.
+
 ## 3. Visualization
 
 To visualize the transformed data, load `data/02_transformed/unified_data.csv` into [Kepler.gl Demo](https://kepler.gl/demo).

@@ -57,6 +57,14 @@ _COMPACT_CENSUS_PROPERTIES = [
     "bivariate_label",
 ]
 
+# Columns the fire hexbin layer needs from the unified fire incidents.
+_COMPACT_FIRE_COLUMNS = [
+    "lat",
+    "lon",
+    "incident_type",
+    "occurrence_date",
+]
+
 
 def _compact_crime(verbose: bool, source_dir: str | None = None) -> pd.DataFrame:
     if source_dir is None:
@@ -108,6 +116,16 @@ def _compact_census(verbose: bool, source_dir: str | None = None) -> gpd.GeoData
     return gdf
 
 
+def _simplify_geojson(src: str) -> gpd.GeoDataFrame:
+    """Load a polygon GeoJSON and simplify its geometry at the shared tolerance."""
+    gdf = gpd.read_file(src)
+    utm = gdf.to_crs(epsg=26917)
+    utm["geometry"] = utm.geometry.simplify(
+        tolerance=_SIMPLIFY_TOLERANCE_M, preserve_topology=True
+    )
+    return utm.to_crs(epsg=4326)
+
+
 def build_standalone_compact(source_dir: str | None = None, verbose: bool = True) -> None:
     """Produce compact variants of all three viz datasets.
 
@@ -155,6 +173,36 @@ def build_standalone_compact(source_dir: str | None = None, verbose: bool = True
         if verbose:
             logger.info(f"Copying coordinate anomalies to {anomalies_out}")
         shutil.copyfile(anomalies_src, anomalies_out)
+
+    # --- Fire products (top-level only — absent in per-year folders, so copy/
+    # build when present, no warning otherwise; mirrors coordinate anomalies). ---
+    fire_inc_src = os.path.join(source_dir, "fire_incidents.csv")
+    if os.path.exists(fire_inc_src):
+        fire = pd.read_csv(fire_inc_src, usecols=_COMPACT_FIRE_COLUMNS, low_memory=False)
+        fire = fire.dropna(subset=["lat", "lon"])
+        fire["lat"] = fire["lat"].round(5)
+        fire["lon"] = fire["lon"].round(5)
+        fire_out = os.path.join(out_dir, "fire_incidents_compact.csv")
+        if verbose:
+            logger.info(f"Writing {len(fire):,} fire incidents to {fire_out}")
+        fire.to_csv(fire_out, index=False)
+
+    fire_stations_src = os.path.join(source_dir, "fire_stations.geojson")
+    if os.path.exists(fire_stations_src):
+        fire_stations_out = os.path.join(out_dir, "fire_stations.geojson")
+        if verbose:
+            logger.info(f"Copying fire stations to {fire_stations_out}")
+        shutil.copyfile(fire_stations_src, fire_stations_out)
+
+    fire_da_src = os.path.join(source_dir, "fire_da.geojson")
+    if os.path.exists(fire_da_src):
+        fire_da = _simplify_geojson(fire_da_src)
+        fire_da_out = os.path.join(out_dir, "fire_da_compact.geojson")
+        if os.path.exists(fire_da_out):
+            os.remove(fire_da_out)
+        if verbose:
+            logger.info(f"Writing {len(fire_da):,} fire DAs to {fire_da_out}")
+        fire_da.to_file(fire_da_out, driver="GeoJSON")
 
     # --- Size report ---
     if verbose:
