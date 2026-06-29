@@ -51,6 +51,19 @@ function yoyMonths(months: string[]): string[] {
   return months.filter((m) => m.startsWith('2026_') && set.has(`2025_${m.slice(5)}`));
 }
 
+/** The latest *complete* month in `list` — i.e. the newest one strictly before
+ *  the current calendar month, so the in-progress (year-to-date, partial) month
+ *  isn't the default. Falls back to the newest available month when every month
+ *  is the current/partial one. `list` is assumed ascending; zero-padded YYYY_MM
+ *  keys compare correctly as strings. */
+function latestCompleteMonth(list: string[]): string {
+  if (!list.length) return '';
+  const now = new Date();
+  const currentKey = `${now.getFullYear()}_${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const complete = list.filter((m) => m < currentKey);
+  return complete.length ? complete[complete.length - 1] : list[list.length - 1];
+}
+
 const label = (m: string) => m.replace('_', '-');
 const fieldFor = (m: string, metric: MonthlyMetric) =>
   metric === 'per1k' ? `rate_${m}_per_1k` : `count_${m}`;
@@ -97,9 +110,7 @@ export function MonthlyControl({ raw }: { raw: FeatureCollection }): JSX.Element
 
   const [mode, setMode] = React.useState<MonthlyMode>('single');
   const [metric, setMetric] = React.useState<MonthlyMetric>('per1k');
-  const [month, setMonth] = React.useState<string>(
-    () => months[months.length - 1] ?? ''
-  );
+  const [month, setMonth] = React.useState<string>(() => latestCompleteMonth(months));
 
   // Months selectable for the active mode (YoY needs a 2025 twin).
   const available = mode === 'yoy' ? yoy : months;
@@ -107,7 +118,7 @@ export function MonthlyControl({ raw }: { raw: FeatureCollection }): JSX.Element
   // Keep `month` valid when the mode flips (e.g. single → yoy with a 2025 month).
   React.useEffect(() => {
     if (available.length && !available.includes(month)) {
-      setMonth(available[available.length - 1]);
+      setMonth(latestCompleteMonth(available));
     }
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
