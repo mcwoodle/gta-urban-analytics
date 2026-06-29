@@ -35,7 +35,10 @@ const ENTRIES_FULL: StandaloneEntry[] = [
   { id: 'crime_points', label: 'Unified GTA Crime', format: 'csv' },
   { id: 'census_da', label: 'Census Dissemination Areas', format: 'geojson' },
   { id: 'shooting_arcs', label: 'Shooting → Centroid Arcs', format: 'csv' },
-  { id: 'coordinate_anomalies', label: 'Coordinate Anomalies (placeholder/snapped)', format: 'csv' }
+  { id: 'coordinate_anomalies', label: 'Coordinate Anomalies (placeholder/snapped)', format: 'csv' },
+  { id: 'fire_incidents', label: 'Toronto Fire Incidents', format: 'csv' },
+  { id: 'fire_stations', label: 'Fire Stations (fires handled)', format: 'geojson' },
+  { id: 'fire_da', label: 'Fire Rate by DA', format: 'geojson' }
 ];
 
 const ENTRIES_LITE: StandaloneEntry[] = [

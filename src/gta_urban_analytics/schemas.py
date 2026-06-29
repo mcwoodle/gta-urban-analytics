@@ -141,6 +141,51 @@ toronto_ytd_schema = DataFrameSchema({
     "lon": Column(pa.Float, nullable=True, required=False, coerce=True),
 }, coerce=True)
 
+# --- Fire (Toronto Fire Services, City of Toronto Open Data) ---
+
+# Raw Toronto Fire Incidents (subset of the ~43 OFM-reportable columns we use).
+toronto_fire_schema = DataFrameSchema({
+    "Incident_Number": Column(pa.String, nullable=True, required=False, coerce=True),
+    "Final_Incident_Type": Column(pa.String, nullable=True, required=False, coerce=True),
+    "Incident_Station_Area": Column(pa.String, nullable=True, required=False, coerce=True),
+    "Latitude": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "Longitude": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "TFS_Alarm_Time": Column(pa.String, nullable=True, required=False, coerce=True),
+    "Estimated_Dollar_Loss": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "Number_of_responding_personnel": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "Number_of_responding_apparatus": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "Civilian_Casualties": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "Area_of_Origin": Column(pa.String, nullable=True, required=False, coerce=True),
+}, coerce=True)
+
+# Raw Brampton "Residential Fire Incidents 2012-2016" (BFES, ArcGIS GeoJSON dump).
+# Residential-only, closed historical window; no dollar loss or responding station.
+# lat/lon are added by the paginated downloader from the (WGS84) geometry.
+brampton_fire_incident_schema = DataFrameSchema({
+    "FIRE": Column(pa.String, nullable=True, required=False, coerce=True),
+    "DATE_": Column(pa.String, nullable=True, required=False, coerce=True),
+    "PROPERTY_CLASS_DESC": Column(pa.String, nullable=True, required=False, coerce=True),
+    "AREA_OF_ORIGIN_DESC": Column(pa.String, nullable=True, required=False, coerce=True),
+    "CAUSE_DESC": Column(pa.String, nullable=True, required=False, coerce=True),
+    "lat": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "lon": Column(pa.Float, nullable=True, required=False, coerce=True),
+}, coerce=True)
+
+# Unified fire-incident schema (parallel to unified_schema, but fire-specific).
+fire_unified_schema = DataFrameSchema({
+    "source_file_name": Column(pa.String, nullable=False, required=True),
+    "source_identifier": Column(pa.String, nullable=False, required=True),
+    "region": Column(pa.String, nullable=False, required=True),
+    "municipality": Column(pa.String, nullable=False, required=True),
+    "incident_type": Column(pa.String, nullable=True),
+    "station_area": Column(pa.String, nullable=True),
+    "occurrence_date": Column(pa.String, nullable=True),
+    "lat": Column(pa.Float, nullable=False, required=True),
+    "lon": Column(pa.Float, nullable=False, required=True),
+    "estimated_dollar_loss": Column(pa.Float, nullable=True),
+    "responding_personnel": Column(pa.Float, nullable=True),
+}, coerce=True)
+
 york_schema = DataFrameSchema({
     "UniqueIdentifier": Column(pa.String, nullable=True, required=False, coerce=True),
     "Occurrence Detail": Column(pa.String, nullable=True, required=False, coerce=True),

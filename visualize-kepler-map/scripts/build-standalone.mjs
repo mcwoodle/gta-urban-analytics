@@ -51,7 +51,10 @@ const DATASETS_FULL = [
   { key: 'crime_points',  file: 'unified_data_compact.csv' },
   { key: 'census_da',     file: 'gta_census_da_compact.geojson' },
   { key: 'shooting_arcs', file: 'shooting_arcs.csv' },
-  { key: 'coordinate_anomalies', file: 'coordinate_anomalies.csv' }
+  { key: 'coordinate_anomalies', file: 'coordinate_anomalies.csv' },
+  { key: 'fire_incidents', file: 'fire_incidents_compact.csv' },
+  { key: 'fire_stations',  file: 'fire_stations.geojson' },
+  { key: 'fire_da',        file: 'fire_da_compact.geojson' }
 ];
 
 // Lite profile embeds H3-aggregated crime data as centroid lat/lon + count,

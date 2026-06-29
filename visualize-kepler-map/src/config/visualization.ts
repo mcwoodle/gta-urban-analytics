@@ -52,6 +52,16 @@ const VIRIDIS: ColorRangeSpec = {
   colors: ['#440154', '#443983', '#31688e', '#21918c', '#35b779', '#90d743', '#fde725']
 };
 
+// Sequential heat ramp for the fire layers (incident density, station volume,
+// per-capita fire rate). Distinct yellow→deep-orange so fire reads apart from the
+// crime layers' magenta→amber "Global Warming" ramp.
+const FIRE_HEAT: ColorRangeSpec = {
+  name: 'Fire Heat',
+  type: 'sequential',
+  category: 'Custom',
+  colors: ['#ffffb2', '#fed976', '#feb24c', '#fd8d3c', '#fc4e2a', '#e31a1c', '#b10026']
+};
+
 // Qualitative ramp for the coordinate-anomaly overlay. Colours by anomaly_type
 // (an ordinal field), so the two classes read distinctly. Domain is sorted
 // alphabetically by Kepler's ordinal scale: index 0 = 'high_traffic_area'
@@ -115,6 +125,27 @@ export const VIZ_CONFIG: VisualizationConfig = {
       // coordinate is an artifact regardless of the selected year, so this URL
       // has no year segment and stays constant across year changes.
       url: '../../data/02_transformed/coordinate_anomalies.csv',
+      visible: true
+    },
+    // Fire datasets (Toronto Fire Services). Top-level products (not
+    // year-partitioned, like coordinate_anomalies) — URLs have no year segment,
+    // so the year selector leaves them unchanged.
+    {
+      id: 'fire_incidents',
+      label: 'Toronto Fire Incidents',
+      url: '../../data/02_transformed/fire_incidents.csv',
+      visible: true
+    },
+    {
+      id: 'fire_stations',
+      label: 'Fire Stations (fires handled)',
+      url: '../../data/02_transformed/fire_stations.geojson',
+      visible: true
+    },
+    {
+      id: 'fire_da',
+      label: 'Fire Rate by DA',
+      url: '../../data/02_transformed/fire_da.geojson',
       visible: true
     }
   ],
@@ -289,6 +320,81 @@ export const VIZ_CONFIG: VisualizationConfig = {
       colorScale: 'quantile',
       heightField: { name: 'Population', type: 'integer' },
       heightScale: 'sqrt'
+    },
+
+    // -------------------------------------------------------------------
+    // Layer 8 — Toronto Fire Incident Hexbin
+    // -------------------------------------------------------------------
+    // Density of fire incidents (parallel to the crime hexbin). Hidden by
+    // default; toggle on to see where fires concentrate.
+    {
+      kind: 'hexbin',
+      id: 'fire_hex',
+      label: 'Fire Incident Hexbin',
+      dataId: 'fire_incidents',
+      isVisible: false,
+      columns: { lat: 'lat', lng: 'lon' },
+      visConfig: {
+        worldUnitSize: 0.3,
+        elevationScale: 40,
+        enable3d: true,
+        coverage: 0.95,
+        opacity: 0.85,
+        colorRange: FIRE_HEAT
+      }
+    },
+
+    // -------------------------------------------------------------------
+    // Layer 9 — Fire Stations sized by "fires handled"  (★ headline fire view)
+    // -------------------------------------------------------------------
+    // One dot per Toronto fire station, sized + coloured by how many incidents
+    // it responded to (incidents grouped on Incident_Station_Area). Directly
+    // answers "how many fires did each station handle?". Hover shows the count
+    // and total dollar loss.
+    {
+      kind: 'point',
+      id: 'fire_stations',
+      label: 'Fire Stations (fires handled)',
+      dataId: 'fire_stations',
+      isVisible: false,
+      columns: { lat: 'lat', lng: 'lon' },
+      visConfig: {
+        radius: 20,
+        opacity: 0.85,
+        filled: true,
+        colorRange: FIRE_HEAT,
+        radiusRange: [8, 120],
+        fixedRadius: false,
+        outline: true,
+        thickness: 1.5
+      },
+      colorField: { name: 'fires_handled', type: 'integer' },
+      colorScale: 'quantize',
+      sizeField: { name: 'fires_handled', type: 'integer' },
+      sizeScale: 'sqrt'
+    },
+
+    // -------------------------------------------------------------------
+    // Layer 10 — Fire Rate per 1,000 by DA
+    // -------------------------------------------------------------------
+    // Per-capita fire-incident rate per Dissemination Area (the fire analogue
+    // of the crime-rate choropleth). Hidden by default.
+    {
+      kind: 'geojson',
+      id: 'fire_rate_choropleth',
+      label: 'Fire Rate per 1,000 by DA',
+      dataId: 'fire_da',
+      isVisible: false,
+      visConfig: {
+        opacity: 0.6,
+        filled: true,
+        stroked: true,
+        strokeColor: [255, 255, 255],
+        strokeOpacity: 0.4,
+        colorRange: FIRE_HEAT
+      },
+      colorField: { name: 'fire_rate_per_1k', type: 'real' },
+      colorScale: 'quantize'
     }
   ],
 
@@ -315,7 +421,18 @@ export const VIZ_CONFIG: VisualizationConfig = {
       'crime_count',
       'Population',
       'DAUID'
-    ]
+    ],
+    // Fire layers. Station tooltip leads with the headline "fires handled".
+    fire_stations: [
+      'station',
+      'municipality',
+      'address',
+      'fires_handled',
+      'total_dollar_loss'
+    ],
+    // The standalone build embeds a slim fire-incident CSV (lat/lon + these two).
+    fire_incidents: ['incident_type', 'occurrence_date'],
+    fire_da: ['fire_rate_per_1k', 'fire_count', 'Population', 'DAUID']
   },
 
   // GTA-fitting viewport: covers Toronto + Halton + Peel + York + Durham.

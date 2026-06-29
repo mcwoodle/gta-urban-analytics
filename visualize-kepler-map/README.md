@@ -1,15 +1,23 @@
 # GTA Urban Analytics — Kepler.gl Visualization
 
-A seven-layer Kepler.gl map of GTA crime + census data, driven from a single
+A ten-layer Kepler.gl map of GTA crime + census + fire data, driven from a single
 typed config file (`src/config/visualization.ts`) so layer choice and styling
 can be tweaked without touching React code.
 
-The seven layers: (1) crime hexbin, (2) median-income choropleth, (3) crime-rate
-choropleth, (4) shooting → centroid arcs, (5) a coordinate-anomaly overlay that
-marks placeholder/snapped points (> 500 incidents at one exact lat/lon) —
-coloured by class so anomalies near a known high-traffic venue (mall/hospital)
-read apart from unexplained ones (audit F-19), **(6) an income × crime-rate
-bivariate choropleth**, and **(7) a 3D crime-rate-by-population extrusion**.
+The crime/census layers: (1) crime hexbin, (2) median-income choropleth,
+(3) crime-rate choropleth, (4) shooting → centroid arcs, (5) a coordinate-anomaly
+overlay that marks placeholder/snapped points (> 500 incidents at one exact
+lat/lon) — coloured by class so anomalies near a known high-traffic venue
+(mall/hospital) read apart from unexplained ones (audit F-19), **(6) an income ×
+crime-rate bivariate choropleth**, and **(7) a 3D crime-rate-by-population
+extrusion**.
+
+The fire layers (Toronto Fire Services, all hidden by default — toggle on):
+**(8) a fire-incident hexbin** (density of fires), **(9) fire stations sized +
+coloured by "fires handled"** (incidents grouped on the responding
+`Incident_Station_Area`; hover shows the count + total dollar loss — the headline
+fire view), and **(10) a per-DA fire-rate-per-1,000 choropleth**. All fire data
+is produced by the Python `transform/fire/` pipeline; the viz only renders it.
 
 **Layers 6 and 7 show how crime rate relates to census data.** Layer 6 is the
 default view: each Dissemination Area is coloured from a 3×3 bivariate palette
@@ -83,9 +91,10 @@ are relative, so the site works under any path prefix.
 yarn build:standalone    # → dist/standalone.html (plus the multi-file site)
 ```
 
-The produced `dist/standalone.html` contains the JS bundle **and** all four
-datasets (gzip-compressed, base64-encoded) embedded inline. Open it directly
-from a file browser or drag it onto a browser tab — no server required.
+The produced `dist/standalone.html` contains the JS bundle **and** every
+dataset (crime, census, arcs, anomalies, and the three fire products —
+gzip-compressed, base64-encoded) embedded inline. Open it directly from a file
+browser or drag it onto a browser tab — no server required.
 
 The standalone build uses a Carto dark-matter basemap so it does not depend
 on Mapbox tile servers (which can reject requests from `null`-origin
@@ -106,9 +115,10 @@ src/
 ├── layers/
 │   ├── index.ts              # buildLayers() dispatcher
 │   ├── hexbinLayer.ts        # Layer 1
-│   ├── geojsonLayer.ts       # Layers 2, 3, 6 (flat) + 7 (3D extrusion)
+│   ├── geojsonLayer.ts       # Layers 2, 3, 6 (flat) + 7 (3D extrusion) + 10 (fire rate)
 │   ├── arcLayer.ts           # Layer 4
-│   └── pointLayer.ts         # Layer 5 (coordinate anomalies)
+│   ├── hexbinLayer.ts        # Layers 1 + 8 (fire)
+│   └── pointLayer.ts         # Layer 5 (anomalies) + 9 (fire stations)
 ├── components/
 │   ├── MapShell.tsx          # load + dispatch wiring
 │   ├── RadiusControl.tsx     # custom debounced slider
