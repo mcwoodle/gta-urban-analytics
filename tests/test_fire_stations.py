@@ -65,3 +65,46 @@ def test_join_handles_float_station_keys(tmp_path):
         output_dir=str(tmp_path), verbose=False,
     )
     assert out.set_index("station")["fires_handled"].to_dict()["311"] == 3
+
+
+def _brampton_stations():
+    # Raw municipal station CSV as the ArcGIS GeoJSON download provides it.
+    return pd.DataFrame(
+        {
+            "FIRE_STATION_NUMBER": ["203", "204"],
+            "FIRE_STN_ADDRESS": ["425 CHRYSLER DR", "1 MAIN ST"],
+            "ACCESS_FROM": ["CHRYSLER DR", "MAIN ST"],
+            "lat": [43.70, 43.72],
+            "lon": [-79.75, -79.76],
+        }
+    )
+
+
+def test_municipal_stations_appended_without_volume(tmp_path):
+    out = build_fire_stations(
+        fire_df=_incidents(), stations_df=_stations(),
+        municipal_station_dfs={"Brampton": _brampton_stations()},
+        output_dir=str(tmp_path), verbose=False,
+    )
+    bram = out[out["municipality"] == "Brampton"]
+    assert len(bram) == 2
+    assert (bram["region"] == "Peel").all()
+    # Location-only: no volume reading, flagged so the map can distinguish them.
+    assert (~bram["has_volume"]).all()
+    assert bram["fires_handled"].isna().all()
+    assert out.set_index("station").loc["203", "address"] == "425 CHRYSLER DR"
+    # Toronto stations still carry volume.
+    tor = out[out["region"] == "Toronto"]
+    assert tor["has_volume"].all()
+    assert tor.set_index("station")["fires_handled"].to_dict()["311"] == 3
+
+
+def test_municipal_stations_skipped_in_test_mode(tmp_path):
+    # When stations_df is passed and no municipal frames are given, nothing is
+    # read from disk — output is Toronto-only.
+    out = build_fire_stations(
+        fire_df=_incidents(), stations_df=_stations(),
+        output_dir=str(tmp_path), verbose=False,
+    )
+    assert (out["region"] == "Toronto").all()
+    assert out["has_volume"].all()

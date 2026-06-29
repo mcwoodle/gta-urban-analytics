@@ -158,6 +158,19 @@ toronto_fire_schema = DataFrameSchema({
     "Area_of_Origin": Column(pa.String, nullable=True, required=False, coerce=True),
 }, coerce=True)
 
+# Raw Brampton "Residential Fire Incidents 2012-2016" (BFES, ArcGIS GeoJSON dump).
+# Residential-only, closed historical window; no dollar loss or responding station.
+# lat/lon are added by the paginated downloader from the (WGS84) geometry.
+brampton_fire_incident_schema = DataFrameSchema({
+    "FIRE": Column(pa.String, nullable=True, required=False, coerce=True),
+    "DATE_": Column(pa.String, nullable=True, required=False, coerce=True),
+    "PROPERTY_CLASS_DESC": Column(pa.String, nullable=True, required=False, coerce=True),
+    "AREA_OF_ORIGIN_DESC": Column(pa.String, nullable=True, required=False, coerce=True),
+    "CAUSE_DESC": Column(pa.String, nullable=True, required=False, coerce=True),
+    "lat": Column(pa.Float, nullable=True, required=False, coerce=True),
+    "lon": Column(pa.Float, nullable=True, required=False, coerce=True),
+}, coerce=True)
+
 # Unified fire-incident schema (parallel to unified_schema, but fire-specific).
 fire_unified_schema = DataFrameSchema({
     "source_file_name": Column(pa.String, nullable=False, required=True),

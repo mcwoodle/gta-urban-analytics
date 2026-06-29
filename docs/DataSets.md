@@ -36,14 +36,30 @@ Toronto | Major Crime Indicators | 2014-* | https://open.toronto.ca/dataset/toro
 ## Fire Service Data
 
 Fire is a **municipal** service (not regional like the police feeds), so coverage
-is fragmented: only Toronto publishes rich point-level **incident** data; other GTA
-municipalities publish **station-location** data only (no per-station call/fire
-volumes are openly available). The extractor lives in `extract/fire/` and is
-structured to add more municipalities over time.
+is fragmented: only Toronto publishes rich point-level **incident** data with
+dollar loss + responding station; Brampton publishes a closed 2012–2016
+residential incident set; the other municipalities publish **station-location**
+data only. The extractor lives in `extract/fire/` (one module per municipality)
+and is structured to add more over time.
 
-### Integrated (Toronto Fire Services — City of Toronto Open Data, CKAN)
+**Integration summary (all now wired into `uv run download` + the transform pipeline):**
 
-These are pulled via the CKAN datastore-dump endpoint
+| Municipality | Region | Dataset | Type | Feeds |
+|---|---|---|---|---|
+| Toronto | Toronto | Fire Incidents (~37k) + 85 stations | incidents + stations w/ volume | `fire_incidents`, `fire_stations` (volume), `fire_da` |
+| Brampton | Peel | Residential Fire Incidents 2012–2016 (758) | incidents | `fire_incidents`, `fire_da` |
+| Mississauga | Peel | City Fire Stations (22) | stations (no volume) | `fire_stations` (location-only) |
+| Brampton | Peel | Fire Stations (14) | stations (no volume) | `fire_stations` (location-only) |
+| Markham | York | Fire Stations (9) | stations (no volume) | `fire_stations` (location-only) |
+
+Station points without an incident feed are written with `has_volume = false` and
+null `fires_handled`/`total_dollar_loss`, so the map can show their coverage
+without implying they handled zero fires. The per-station "fires handled" volume
+metric remains Toronto-only.
+
+### Integrated — Toronto (City of Toronto Open Data, CKAN)
+
+Pulled via the CKAN datastore-dump endpoint
 (`extract/ckan.py`; `https://ckan0.cf.opendata.inter.prod-toronto.ca/datastore/dump/<resource_id>`).
 
 Source | Dataset | Web Link | CKAN Resource ID
@@ -51,20 +67,16 @@ Source | Dataset | Web Link | CKAN Resource ID
 Toronto Fire | Fire Incidents (incident type, time, location, dollar loss, responding station) | https://open.toronto.ca/dataset/fire-incidents/ | fa5c7de5-10f8-41cf-883a-9b30a67c7b56
 Toronto Fire | Fire Station / Facility Locations (85 stations) | https://open.toronto.ca/dataset/fire-station-locations/ | 9d1b7352-32ce-4af2-8681-595ce9e47b6e
 
-### Future expansion (sources identified, not yet integrated)
+### Integrated — other municipalities (ArcGIS FeatureServer)
 
-Per the project sourcing brief. Each source below was pulled and inspected
-(ArcGIS REST `?f=json` field list + a sample row, June 2026); field names, record
-counts, geometry/CRS, and access notes are recorded so integration can map them
-to `fire_unified_schema` / the `fire_stations` layer without re-discovery. All
-are **station-location only** unless flagged as an **incident** feed.
-
-All ArcGIS items are reachable two ways: the item metadata at
-`https://www.arcgis.com/sharing/rest/content/items/<itemid>?f=json` (yields the
-service `url`), then `<service>/<layerId>/query?where=1=1&outFields=*&f=json` for
-records. Hub CSV/GeoJSON export also works for most. Coordinates are noted per
-source — most are **Web Mercator (EPSG:3857)** and will need the same reprojection
-to WGS84 that York crime data gets.
+Each is an ArcGIS FeatureServer **query** endpoint downloaded with
+`extract/arcgis/paginated.py` via the helper in `extract/fire/common.py`
+(`extract/fire/{mississauga,brampton,markham}.py`). Requesting `f=geojson` makes
+ArcGIS reproject every source CRS (Web Mercator, UTM 17N) to **WGS84**, so the
+lat/lon the downloader derives from the geometry are always 4326 — no manual
+reprojection needed. Field lists below were captured from the live services
+(June 2026). Items are also reachable via metadata at
+`https://www.arcgis.com/sharing/rest/content/items/<itemid>?f=json`.
 
 #### Peel — Mississauga, "City Fire Stations" *(station locations)*
 - **Item** `e84a2af2c2c6489cbd42086769df9b5e` · service
@@ -93,15 +105,17 @@ to WGS84 that York crime data gets.
 - **758 points**, `esriGeometryPoint`. Coordinates are **WGS84 lat/lon in the
   attributes** (`XCOORD` ≈ −79.75 lon, `YCOORD` ≈ 43.74 lat); the geometry itself
   is projected.
-- **Fields:** `FIRE` (incident id, e.g. `"1200362-00"`), `DATE_` (`MM/DD/YY`),
+- **Fields:** `FIRE` (incident id, e.g. `"1200362-00"`), `DATE_` (**`YY/MM/DD`** —
+  e.g. `"12/01/03"` = 2012‑01‑03, confirmed against the `FIRE` year prefix),
   `ALARM` (time of day), `XCOORD`/`YCOORD`, `PROPERTY_CLASS_DESC`,
   `AREA_OF_ORIGIN_DESC`, `CAUSE_DESC`, `IGNITION_SOURCE_DESC`,
   `LEVEL_OF_ORIGIN_DESC`, `OBJECT_IGNITED_DESC`.
-- **This is per-incident point data** — the first non-Toronto source that could
-  feed a "fires handled" volume metric. Caveats: **residential fires only**, a
-  closed **2012–2016** historical window, **no dollar loss** and **no responding
-  station**, so it is not directly comparable to Toronto's `Estimated_Dollar_Loss`
-  / `Incident_Station_Area` feed.
+- **Integrated** as a second incident source in `unify_fire` (`region=Peel`,
+  `municipality=Brampton`). It is **residential fires only**, a closed **2012–2016**
+  window, with **no dollar loss / responding station / personnel** — so it
+  contributes points + the constant `incident_type="Residential Fire"` to
+  `fire_incidents`/`fire_da`, but NOT the per-station "fires handled" volume
+  (which stays Toronto-only).
 
 #### York — Markham, "Fire Stations" *(station locations; listed as "York Region" — incorrect)*
 - **Item** `02532059bb684e40baa15313b8ab3bb3`. **Correction:** this item is owned
@@ -118,6 +132,8 @@ to WGS84 that York crime data gets.
 - **No single York-Region-wide fire-station open dataset surfaced** — coverage is
   per-municipality (Markham here; Vaughan/Richmond Hill etc. would each need their
   own source). Full York coverage means stitching several municipal feeds.
+
+### Not integrated (aggregate-only / no usable open data)
 
 #### York — Central York Fire Services (Newmarket & Aurora) *(ward-aggregated causes only)*
 - Community Risk Public Portal (top-3 fire causes per ward; launched Apr 2026):

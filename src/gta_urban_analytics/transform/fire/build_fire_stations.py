@@ -10,6 +10,11 @@ The station CSV's ``STATION`` number is the join key. Station areas with no
 matching physical station (e.g. mutual-aid / unknown) are reported as a small
 "unmatched" summary in the log but dropped from the point layer.
 
+Other GTA municipalities (Mississauga, Brampton, Markham) publish station
+**locations** but no per-station incident counts, so they are appended as points
+with ``has_volume = False`` and null ``fires_handled``/``total_dollar_loss`` —
+they extend station coverage on the map without faking a zero-volume reading.
+
 Output: data/02_transformed/fire_stations.geojson
 """
 
@@ -18,6 +23,7 @@ import json
 import logging
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -25,6 +31,88 @@ logger = logging.getLogger(__name__)
 _project_root = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 )
+
+# Municipal station-location feeds with no per-station volume data. Each raw CSV
+# comes from the ArcGIS GeoJSON download (so lat/lon are present); ``station_col``
+# is the station-number/id and ``address_cols`` are joined (space-separated) into
+# a single address string.
+_MUNICIPAL_STATIONS = [
+    {
+        "municipality": "Mississauga", "region": "Peel",
+        "filename": "Mississauga_Fire_Stations.csv",
+        "station_col": "UNITID", "address_cols": ["STNO", "STNAME", "SUFFIX"],
+    },
+    {
+        "municipality": "Brampton", "region": "Peel",
+        "filename": "Brampton_Fire_Stations.csv",
+        "station_col": "FIRE_STATION_NUMBER", "address_cols": ["FIRE_STN_ADDRESS"],
+    },
+    {
+        "municipality": "Markham", "region": "York",
+        "filename": "Markham_Fire_Stations.csv",
+        "station_col": "LABEL", "address_cols": ["ADDRESS"],
+    },
+]
+
+# Final column order shared by the Toronto (with-volume) and municipal layers.
+_OUTPUT_COLUMNS = [
+    "station", "region", "municipality", "address",
+    "fires_handled", "total_dollar_loss", "has_volume", "lat", "lon",
+]
+
+
+def _build_municipal_layer(raw_df: pd.DataFrame, cfg: dict) -> gpd.GeoDataFrame:
+    """Turn a raw municipal station CSV into the shared station-point schema.
+
+    No incident volume is available for these municipalities, so ``fires_handled``
+    and ``total_dollar_loss`` are null and ``has_volume`` is False.
+    """
+    df = raw_df.copy().reset_index(drop=True)
+    station = _norm_station(df[cfg["station_col"]])
+
+    address_parts = []
+    for col in cfg["address_cols"]:
+        part = df.get(col, pd.Series([""] * len(df))).astype(str).str.strip()
+        address_parts.append(part.replace({"nan": "", "None": ""}))
+    address = address_parts[0]
+    for part in address_parts[1:]:
+        address = (address + " " + part).str.strip()
+    address = address.str.replace(r"\s+", " ", regex=True).str.strip()
+
+    out = gpd.GeoDataFrame(
+        {
+            "station": station,
+            "region": cfg["region"],
+            "municipality": cfg["municipality"],
+            "address": address,
+            "fires_handled": np.nan,
+            "total_dollar_loss": np.nan,
+            "has_volume": False,
+            "lat": pd.to_numeric(df.get("lat"), errors="coerce"),
+            "lon": pd.to_numeric(df.get("lon"), errors="coerce"),
+        },
+        geometry=gpd.points_from_xy(
+            pd.to_numeric(df.get("lon"), errors="coerce"),
+            pd.to_numeric(df.get("lat"), errors="coerce"),
+        ),
+        crs="EPSG:4326",
+    )
+    return out[out.geometry.notna() & out.geometry.is_valid]
+
+
+def _load_municipal_stations(raw_dir: str, verbose: bool) -> list[gpd.GeoDataFrame]:
+    """Build municipal station layers for every configured CSV present in raw_dir."""
+    layers = []
+    for cfg in _MUNICIPAL_STATIONS:
+        path = os.path.join(raw_dir, cfg["filename"])
+        if not os.path.exists(path):
+            continue
+        raw = pd.read_csv(path, low_memory=False)
+        layer = _build_municipal_layer(raw, cfg)
+        if verbose:
+            logger.info(f"Added {len(layer)} {cfg['municipality']} station points (no volume data).")
+        layers.append(layer)
+    return layers
 
 
 def _norm_station(s: pd.Series) -> pd.Series:
@@ -53,22 +141,35 @@ def build_fire_stations(
     output_dir: str | None = None,
     fire_df: pd.DataFrame | None = None,
     stations_df: pd.DataFrame | None = None,
+    municipal_station_dfs: dict[str, pd.DataFrame] | None = None,
     verbose: bool = True,
 ) -> gpd.GeoDataFrame:
     """Build the per-station fires-handled point layer.
 
+    Toronto stations carry ``fires_handled`` (``has_volume = True``); the other
+    municipalities are appended as station points with null volume.
+
     Parameters:
-        raw_dir:     Holds ``Toronto_Fire_Stations.csv``. Defaults to data/01_raw/.
+        raw_dir:     Holds ``Toronto_Fire_Stations.csv`` (+ municipal station
+                     CSVs). Defaults to data/01_raw/.
         output_dir:  Holds ``fire_incidents.csv`` and receives the output GeoJSON.
                      Defaults to data/02_transformed/.
         fire_df:     Pre-loaded unified fire frame (tests).
-        stations_df: Pre-loaded raw stations frame (tests).
+        stations_df: Pre-loaded raw Toronto stations frame (tests). When passed
+                     (test mode) the municipal station CSVs are NOT read from
+                     disk, keeping tests deterministic.
+        municipal_station_dfs: Pre-loaded raw municipal station frames keyed by
+                     municipality name (tests), e.g. ``{"Brampton": df}``.
         verbose:     Log progress.
     """
     if raw_dir is None:
         raw_dir = os.path.join(_project_root, "data", "01_raw")
     if output_dir is None:
         output_dir = os.path.join(_project_root, "data", "02_transformed")
+
+    # Capture test mode now: ``stations_df`` is reassigned to the loaded Toronto
+    # frame below, so we can't use it to detect injection after that point.
+    stations_injected = stations_df is not None
 
     # --- Unified fire incidents (station_area + dollar loss) ---
     if fire_df is None:
@@ -119,22 +220,31 @@ def build_fire_stations(
             f"{int(unmatched['fires_handled'].sum()):,} incidents — dropped from the layer."
         )
 
-    out = gpd.GeoDataFrame(
-        merged[
-            [
-                "station",
-                "MUNICIPALITY_NAME",
-                "ADDRESS",
-                "fires_handled",
-                "total_dollar_loss",
-                "lat",
-                "lon",
-            ]
-        ].rename(columns={"MUNICIPALITY_NAME": "municipality", "ADDRESS": "address"}),
+    merged["region"] = "Toronto"
+    merged["has_volume"] = True
+    toronto = gpd.GeoDataFrame(
+        merged.rename(columns={"MUNICIPALITY_NAME": "municipality", "ADDRESS": "address"})[
+            _OUTPUT_COLUMNS
+        ],
         geometry=gpd.points_from_xy(merged["lon"], merged["lat"]),
         crs="EPSG:4326",
     )
-    out = out[out.geometry.notna() & out.geometry.is_valid]
+    toronto = toronto[toronto.geometry.notna() & toronto.geometry.is_valid]
+
+    # --- Municipal station-location feeds (no per-station volume) ---
+    municipal_layers = []
+    if municipal_station_dfs is not None:
+        cfg_by_name = {c["municipality"]: c for c in _MUNICIPAL_STATIONS}
+        for name, raw in municipal_station_dfs.items():
+            municipal_layers.append(_build_municipal_layer(raw, cfg_by_name[name]))
+    elif not stations_injected:
+        # Production: read whatever municipal CSVs were downloaded.
+        municipal_layers = _load_municipal_stations(raw_dir, verbose)
+
+    out = gpd.GeoDataFrame(
+        pd.concat([toronto, *municipal_layers], ignore_index=True),
+        crs="EPSG:4326",
+    )
 
     os.makedirs(output_dir, exist_ok=True)
     out_path = os.path.join(output_dir, "fire_stations.geojson")
@@ -143,10 +253,12 @@ def build_fire_stations(
     out.to_file(out_path, driver="GeoJSON")
 
     if verbose:
+        with_vol = out[out["has_volume"]]
         logger.info(
-            f"Wrote {len(out)} stations to {out_path}. "
-            f"fires_handled: total={int(out['fires_handled'].sum()):,}, "
-            f"max={int(out['fires_handled'].max())}."
+            f"Wrote {len(out)} stations to {out_path} "
+            f"({len(with_vol)} with volume, {len(out) - len(with_vol)} location-only). "
+            f"fires_handled: total={int(with_vol['fires_handled'].sum()):,}, "
+            f"max={int(with_vol['fires_handled'].max())}."
         )
 
     return out
