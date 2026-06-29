@@ -119,12 +119,55 @@ to WGS84 that York crime data gets.
   per-municipality (Markham here; Vaughan/Richmond Hill etc. would each need their
   own source). Full York coverage means stitching several municipal feeds.
 
-#### York — Central York Fire Services (Newmarket & Aurora) *(still no usable open data)*
+#### York — Central York Fire Services (Newmarket & Aurora) *(ward-aggregated causes only)*
 - Community Risk Public Portal (top-3 fire causes per ward; launched Apr 2026):
-  https://www.centralyorkfire.ca/ — interactive only, **no confirmed open
-  API/bulk export**.
-- The `AuroraData` org publishes a "Fire Stations" item
-  (`ad1e9aeeb26649158f018a3056115dce`) but it is an **ArcGIS sample/placeholder
-  dataset of Illinois fire departments** (rows show `CITY` = Elburn, `STATE` =
-  `"IL"`), **not** Aurora, Ontario — do not use it. Central York remains
-  unintegratable from open data for now.
+  https://www.centralyorkfire.ca/. **Update:** the portal's data layer *is* an
+  open feature service — **item `344aa99a76da416c81673b3ddfd568f5`** (owner
+  `TownOfNewmarket`), service
+  `services3.arcgis.com/tSwsWwbYRimLwcCZ/arcgis/rest/services/Community_Risk_Portal_Top_Fire_Causes_Public_View/FeatureServer/0`.
+- **13 polygons** (Newmarket + Aurora wards), `esriGeometryPolygon`. Fields:
+  `MUNICIPALITY`, `WARD_NAME`/`WARD_NUMBER`/`WARD_ID`, and
+  `TopFireCause{1,2,3}` + `..._Count` + `..._URL` (links to cyfs.ca safety tips,
+  e.g. cause `"Cooking/BBQ"` count `2`).
+- **This is ward-aggregated top-3 causes, not incident-level** — counts are tiny
+  (1–2) and there is no location/time/dollar-loss per fire. Useful as a
+  ward-level cause overlay, not a volume metric.
+- Do **not** use the `AuroraData` org: its "Fire Stations"
+  (`ad1e9aeeb26649158f018a3056115dce`) and `FireMain_*`/`AFD_*` stats are
+  **Aurora, *Illinois*** (a 4.8M-row Esri "FireMain" demo; `STATE` = `"IL"`,
+  sibling "Aurora IL Police Calls" layers), not Aurora, Ontario.
+
+### Deep search for incident-level fire data (June 2026)
+
+A wider sweep of municipal/regional ArcGIS orgs (Mississauga, Brampton, Markham,
+Vaughan, Richmond Hill, Newmarket, Aurora, Region of Peel, York Region, plus
+Halton/Durham municipalities) for **incident-level** fire data (per-fire points
+with time/cause/loss, comparable to Toronto's feed) returned **almost nothing new**:
+
+- **Only two open incident feeds exist in the GTA:** Toronto Fire Incidents
+  (integrated) and **Brampton's "BFES Residential Fire Incidents 2012–2016"**
+  (recorded above — residential-only, closed historical window). No other GTA
+  municipality publishes open per-incident fire points.
+- **Vaughan** keeps the richest non-Toronto incident database (VFRS, since 2009)
+  but it is **released only under NDA for research** — there is no open portal
+  dataset. The City publishes call totals in PDF **annual reports** only
+  (https://www.vaughan.ca/.../annual-reports). The ArcGIS layers named
+  "Vaughan Fire Incidents" (owner `tis607_spatialsk`, item
+  `efa2488d2aed41d99902a6ce8e7fbd8f`; and York-U researcher
+  `tayyab.shah_yorku`) are **non-authoritative re-publications** and, despite the
+  name, hold **per-station call counts** (9 stations × `Fires`/`SuddenMedEm`/
+  `TechRescues`/`Hazardous`), not raw incidents.
+- **Mississauga / Brampton / Markham / Region of Peel / York Region** expose only
+  station points, fire **response-zone polygons**, or non-fire layers (Mississauga
+  publishes 311 call data, not fire). Peel/York are regional bodies; fire is
+  municipal, so neither regional portal carries fire incidents.
+- **Search distractors to skip next time** (these look like GTA hits but are not):
+  `AuroraData` = Aurora, **IL**; `ToCHadmin` "Fire Incidents by Location" = Town of
+  **Chapel Hill, NC** (addresses end "Chapel Hill NC", lat ≈ 35.9); and broad
+  "fire incident" queries surface mostly US NFIRS / wildfire (NIFC, CAL FIRE)
+  layers and `Open.Data_DurhamNC` (Durham, North Carolina — not Durham Region, ON).
+
+**Bottom line:** outside Toronto, open *incident-level* fire data in the GTA is
+limited to Brampton's 2012–2016 residential feed. Everything else is station
+locations, response-zone polygons, or ward-aggregated cause counts; richer
+incident data (e.g. Vaughan) exists but is gated behind NDAs or PDF reports.
