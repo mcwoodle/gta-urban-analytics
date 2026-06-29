@@ -31,3 +31,36 @@ York | ALL | 2025-* | https://insights-york.opendata.arcgis.com/datasets/d89408f
 
 
 Toronto | Major Crime Indicators | 2014-* | https://open.toronto.ca/dataset/toronto-police-service-major-crime-indicators/ | `uv run download_toronto_data.py` (https://hub.arcgis.com/api/download/v1/items/0a239a5563a344a3bbf8452504ed8d68/csv?layers=0) | 0a239a5563a344a3bbf8452504ed8d68
+
+
+## Fire Service Data
+
+Fire is a **municipal** service (not regional like the police feeds), so coverage
+is fragmented: only Toronto publishes rich point-level **incident** data; other GTA
+municipalities publish **station-location** data only (no per-station call/fire
+volumes are openly available). The extractor lives in `extract/fire/` and is
+structured to add more municipalities over time.
+
+### Integrated (Toronto Fire Services — City of Toronto Open Data, CKAN)
+
+These are pulled via the CKAN datastore-dump endpoint
+(`extract/ckan.py`; `https://ckan0.cf.opendata.inter.prod-toronto.ca/datastore/dump/<resource_id>`).
+
+Source | Dataset | Web Link | CKAN Resource ID
+-------|---------|----------|-----------------
+Toronto Fire | Fire Incidents (incident type, time, location, dollar loss, responding station) | https://open.toronto.ca/dataset/fire-incidents/ | fa5c7de5-10f8-41cf-883a-9b30a67c7b56
+Toronto Fire | Fire Station / Facility Locations (85 stations) | https://open.toronto.ca/dataset/fire-station-locations/ | 9d1b7352-32ce-4af2-8681-595ce9e47b6e
+
+### Future expansion (sources identified, not yet integrated)
+
+Per the project sourcing brief. All are **station-location only** (points +
+address/ward/station number); none carry "fires handled" volumes — so when
+integrated they extend the `fire_stations` layer's coverage but the per-station
+volume metric remains Toronto-only unless an incident feed surfaces.
+
+Region | Source | Dataset | Web Link / Portal | Notes
+-------|--------|---------|-------------------|------
+Peel | Mississauga Fire & Emergency Services | City Fire Stations (22 stations, incl. ward + station id) | https://data.mississauga.ca/datasets/city-fire-stations | ArcGIS Hub; CSV/GeoJSON export available
+Peel | Brampton Fire & Emergency Services | Fire Station locations | Brampton GeoHub — https://geohub.brampton.ca/ | Search "fire station"; ArcGIS Hub export
+York | York Region | Fire Stations (emergency infrastructure coords) | https://insights-york.opendata.arcgis.com/datasets/02532059bb684e40baa15313b8ab3bb3 | ArcGIS Hub item `02532059bb684e40baa15313b8ab3bb3`
+York | Central York Fire Services (Newmarket & Aurora) | Community Risk Public Portal (top-3 fire causes per ward; launched Apr 2026) | https://www.centralyorkfire.ca/ | Interactive portal; **no confirmed open API/bulk export** — needs investigation before integration
