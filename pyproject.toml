@@ -26,6 +26,8 @@ transform = "gta_urban_analytics.main:transform"
 analyze = "gta_urban_analytics.main:analyze"
 full-pipeline = "gta_urban_analytics.main:full_pipeline"
 build-map = "gta_urban_analytics.visualize.build:build_map"
+test = "gta_urban_analytics.test_runner:main"
+tests = "gta_urban_analytics.test_runner:main"
 
 [dependency-groups]
 dev = [

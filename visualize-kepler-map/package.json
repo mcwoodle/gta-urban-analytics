@@ -9,7 +9,8 @@
     "build": "node esbuild.config.mjs --build",
     "build:standalone": "node esbuild.config.mjs --build && node scripts/build-standalone.mjs",
     "build:standalone:lite": "node esbuild.config.mjs --build && node scripts/build-standalone.mjs --profile=lite",
-    "build:all": "node esbuild.config.mjs --build && node scripts/build-standalone.mjs && node scripts/build-standalone.mjs --profile=lite"
+    "build:all": "node esbuild.config.mjs --build && node scripts/build-standalone.mjs && node scripts/build-standalone.mjs --profile=lite",
+    "test": "playwright test"
   },
   "dependencies": {
     "@kepler.gl/actions": "^3.1.10",
@@ -30,6 +31,7 @@
     "util": "^0.12.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.42.0",
     "@types/node": "^18.15.3",
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
